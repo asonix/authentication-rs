@@ -18,6 +18,12 @@ pub struct NewUser {
     password: String,
 }
 
+#[derive(Deserialize)]
+pub struct CreateUser {
+    pub username: String,
+    pub password: String,
+}
+
 impl User {
     fn verify_password(&self, password: &str) -> BcryptResult<bool> {
         verify(password, &self.password)
@@ -93,13 +99,27 @@ impl User {
 }
 
 impl NewUser {
-    pub fn set_password(&mut self, password: &str) -> Result<(), &str> {
+    pub fn set_password(&mut self, password: &str) -> Result<(), &'static str> {
         match hash(password, DEFAULT_COST) {
             Ok(hash) => {
                 self.password = hash;
                 Ok(())
             },
             Err(_) => Err("Password could not be set"),
+        }
+    }
+}
+
+impl CreateUser {
+    pub fn insertable(&self) -> Result<NewUser, &'static str> {
+        let mut new_user = NewUser {
+            username: self.username.clone(),
+            password: "".to_string(),
+        };
+
+        match new_user.set_password(&self.password) {
+            Ok(()) => Ok(new_user),
+            Err(m) => Err(m),
         }
     }
 }
