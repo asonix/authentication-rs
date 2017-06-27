@@ -3,6 +3,7 @@ extern crate diesel;
 use super::super::schema::verification_codes;
 use super::user::User;
 use super::super::{ DB_POOL, DB };
+use super::super::error::{ Result };
 use diesel::prelude::*;
 
 #[derive(Queryable, Identifiable, Associations)]
@@ -21,11 +22,11 @@ pub struct CreateVerificationCode {
 }
 
 impl VerificationCode {
-    pub fn new_by_username(username: String) -> Result<CreateVerificationCode, String> {
+    pub fn new_by_username(username: String) -> Result<CreateVerificationCode> {
         CreateVerificationCode::new_by_username(username)
     }
 
-    pub fn new_by_id(user_id: i32) -> Result<CreateVerificationCode, String> {
+    pub fn new_by_id(user_id: i32) -> Result<CreateVerificationCode> {
         CreateVerificationCode::new_by_id(user_id)
     }
 
@@ -43,34 +44,24 @@ impl VerificationCode {
 }
 
 impl CreateVerificationCode {
-    pub fn new_by_username(uname: String) -> Result<Self, String> {
+    pub fn new_by_username(uname: String) -> Result<Self> {
         use super::super::schema::users::dsl::*;
         use super::user::User;
 
-        let db = match DB_POOL.get() {
-            Ok(conn) => DB(conn),
-            Err(_) => return Err("Could not get the database".to_string()),
-        };
+        let conn = DB_POOL.get()?;
+        let db = DB(conn);
 
-        let user = users.filter(username.eq(uname))
-            .first::<User>(db.conn());
-
-        let user: User = match user {
-            Ok(user) => user,
-            Err(_) => return Err("Could not find user".to_string()),
-        };
+        let user: User = users.filter(username.eq(uname))
+            .first::<User>(db.conn())?;
 
         Self::new_by_id(user.id())
     }
 
-    pub fn new_by_id(user_id: i32) -> Result<Self, String> {
+    pub fn new_by_id(user_id: i32) -> Result<Self> {
         use rand::Rng;
         use rand::OsRng;
 
-        let mut os_rng = match OsRng::new() {
-            Ok(os_rng) => os_rng,
-            Err(m) => return Err(m.to_string()),
-        };
+        let mut os_rng = OsRng::new()?;
 
         Ok(CreateVerificationCode {
             code: os_rng.gen_ascii_chars().take(30).collect(),
@@ -78,21 +69,16 @@ impl CreateVerificationCode {
         })
     }
 
-    pub fn save(&self) -> Result<VerificationCode, String> {
+    pub fn save(&self) -> Result<VerificationCode> {
         use schema::verification_codes;
 
-        let db = match DB_POOL.get() {
-            Ok(conn) => DB(conn),
-            Err(_) => return Err("Could not get the database".to_string()),
-        };
+        let conn = DB_POOL.get()?;
+        let db = DB(conn);
 
-        let result = diesel::insert(self)
+        let verification_code = diesel::insert(self)
             .into(verification_codes::table)
-            .get_result(db.conn());
+            .get_result(db.conn())?;
 
-        match result {
-            Ok(verification_code) => Ok(verification_code),
-            Err(m) => Err(m.to_string()),
-        }
+        Ok(verification_code)
     }
 }

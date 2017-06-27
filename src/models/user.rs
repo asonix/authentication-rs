@@ -4,6 +4,7 @@ use super::super::schema::users;
 use super::super::{ DB_POOL, DB, JWT_SECRET };
 use bcrypt::{DEFAULT_COST, hash, verify, BcryptResult};
 use frank_jwt::{Header, Payload, Algorithm, encode, decode};
+use super::super::error::{ Error, Result };
 use diesel::prelude::*;
 
 #[derive(Queryable, Identifiable, AsChangeset, Associations)]
@@ -40,49 +41,38 @@ impl User {
         self.verified
     }
 
-    pub fn verify_with_code(vc: String) -> Result<Self, String> {
+    pub fn verify_with_code(vc: String) -> Result<Self> {
         use super::super::schema::verification_codes::dsl::{verification_codes, code, user_id};
         use super::super::schema::users::dsl::*;
         use super::verification_code::VerificationCode;
 
-        let db = match DB_POOL.get() {
-            Ok(conn) => DB(conn),
-            Err(m) => return Err(m.to_string()),
-        };
+        let conn = DB_POOL.get()?;
+        let db = DB(conn);
 
-        let vc_and_user = verification_codes.inner_join(users)
+        let (_, mut user) = verification_codes.inner_join(users)
             .filter(id.eq(user_id))
             .filter(code.eq(&vc))
-            .first::<(VerificationCode, User)>(db.conn());
-
-        let mut user = match vc_and_user {
-            Ok((_, user)) => user,
-            Err(m) => return Err(m.to_string()),
-        };
+            .first::<(VerificationCode, User)>(db.conn())?;
 
         if !user.verify(db) {
-            return Err("User was not verified".to_string());
+            return Err(Error::UserNotVerifiedError);
         }
 
-        let db = match DB_POOL.get() {
-            Ok(conn) => DB(conn),
-            Err(m) => return Err(m.to_string()),
-        };
+        let conn = DB_POOL.get()?;
+        let db = DB(conn);
 
-        let deleted = diesel::delete(verification_codes.filter(code.eq(&vc)))
-            .execute(db.conn());
+        let _ = diesel::delete(verification_codes.filter(code.eq(&vc)))
+            .execute(db.conn())?;
 
-        match deleted {
-            Ok(_) => Ok(user),
-            Err(m) => Err(m.to_string()),
-        }
+        Ok(user)
     }
 
     fn verify(&mut self, db: DB) -> bool {
         use super::super::schema::users::dsl::*;
-        let updated_record: QueryResult<User> = diesel::update(users.filter(id.eq(self.id)))
+
+        let updated_record = diesel::update(users.filter(id.eq(self.id)))
             .set(verified.eq(true))
-            .get_result(db.conn());
+            .execute(db.conn());
 
         match updated_record {
             Ok(_) => {
@@ -97,25 +87,19 @@ impl User {
         verify(password, &self.password)
     }
 
-    pub fn update_password(&mut self, old_pass: &str, new_pass: &str) -> Result<(), &str> {
-        match self.verify_password(old_pass) {
-            Ok(true) => {
-                match hash(new_pass, DEFAULT_COST) {
-                    Ok(hash) => {
-                        self.password = hash;
-                        Ok(())
-                    }
-                    Err(_) => Err("New password could not be set"),
-                }
-            },
-            Ok(false) => Err("Old password does not match"),
-            _ => Err("Something went wrong"),
+    pub fn update_password(&mut self, old_pass: &str, new_pass: &str) -> Result<()> {
+        if self.verify_password(old_pass)? {
+            let hash = hash(new_pass, DEFAULT_COST)?;
+            self.password = hash;
+            Ok(())
+        } else {
+            Err(Error::PasswordMatchError)
         }
     }
 
-    pub fn create_webtoken(&self) -> Result<String, &'static str> {
+    pub fn create_webtoken(&self) -> Result<String> {
         if !self.verified {
-            return Err("User is not verified");
+            return Err(Error::UserNotVerifiedError);
         }
 
         let mut payload = Payload::new();
@@ -126,99 +110,68 @@ impl User {
         Ok(encode(header, JWT_SECRET.to_string(), payload.clone()))
     }
 
-    pub fn from_webtoken(webtoken: String) -> Result<Self, &'static str> {
+    pub fn from_webtoken(webtoken: String) -> Result<Self> {
         use super::super::schema::users::dsl::*;
 
-        let db = match DB_POOL.get() {
-            Ok(conn) => DB(conn),
-            Err(_) => return Err("Could not get the database"),
-        };
+        let conn = DB_POOL.get()?;
+        let db = DB(conn);
 
-        let decoded = decode(webtoken,
+        let (_header, payload) = decode(webtoken,
                              JWT_SECRET.to_string(),
-                             Algorithm::HS256);
-
-        let payload = match decoded {
-            Ok((_header, payload)) => payload,
-            Err(_) => return Err("Could not decode webtoken"),
-        };
+                             Algorithm::HS256)?;
 
         let user_id = match payload.get("id") {
             Some(user_id) => user_id,
-            None => return Err("Webtoken is invalid"),
+            None => return Err(Error::InvalidWebtokenError),
         };
 
-        let user_id: i32 = match user_id.parse::<i32>() {
-            Ok(user_id) => user_id,
-            Err(_) => return Err("Could not parse user_id from JWT"),
-        };
+        let user_id: i32 = user_id.parse::<i32>()?;
 
         let user = users.filter(verified.eq(true))
             .filter(id.eq(user_id))
-            .first::<Self>(db.conn());
+            .first::<Self>(db.conn())?;
 
-        match user {
-            Ok(user) => Ok(user),
-            Err(_) => Err("Could not fetch user from DB"),
-        }
+        Ok(user)
     }
 }
 
 impl NewUser {
-    pub fn new(username: &str) -> Self {
-        NewUser {
+    pub fn new(username: &str, password: &str) -> Result<Self> {
+        let hash = hash(password, DEFAULT_COST)?;
+
+        Ok(NewUser {
             username: username.to_string(),
-            password: "".to_string(),
-        }
+            password: hash,
+        })
     }
 
-    pub fn set_password(&mut self, password: &str) -> Result<(), &'static str> {
-        match hash(password, DEFAULT_COST) {
-            Ok(hash) => {
-                self.password = hash;
-                Ok(())
-            },
-            Err(_) => Err("Password could not be set"),
-        }
+    pub fn set_password(&mut self, password: &str) -> Result<()> {
+        let hash = hash(password, DEFAULT_COST)?;
+        self.password = hash;
+        Ok(())
     }
 
-    pub fn save(&self) -> Result<User, String> {
+    pub fn save(&self) -> Result<User> {
         use schema::users;
         use super::verification_code::CreateVerificationCode;
 
-        let db = match DB_POOL.get() {
-            Ok(conn) => DB(conn),
-            Err(_) => return Err("Could not get the database".to_string()),
-        };
+        let conn = DB_POOL.get()?;
+        let db = DB(conn);
 
-        let result: QueryResult<User> = diesel::insert(self)
+        let user: User = diesel::insert(self)
             .into(users::table)
-            .get_result(db.conn());
+            .get_result(db.conn())?;
 
-        match result {
-            Ok(user) => {
-                match CreateVerificationCode::new_by_id(user.id) {
-                    Ok(verification_code) => {
-                        match verification_code.save() {
-                            Ok(_) => Ok(user),
-                            Err(m) => Err(m.to_string()),
-                        }
-                    },
-                    Err(m) => Err(m.to_string()),
-                }
-            },
-            Err(m) => Err(m.to_string()),
-        }
+        let verification_code = CreateVerificationCode::new_by_id(user.id)?;
+
+        let _ = verification_code.save()?;
+
+        Ok(user)
     }
 }
 
 impl CreateUser {
-    pub fn insertable(&self) -> Result<NewUser, &'static str> {
-        let mut new_user = NewUser::new(&self.username);
-
-        match new_user.set_password(&self.password) {
-            Ok(()) => Ok(new_user),
-            Err(m) => Err(m),
-        }
+    pub fn insertable(&self) -> Result<NewUser> {
+        NewUser::new(&self.username, &self.password)
     }
 }

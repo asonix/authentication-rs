@@ -1,9 +1,10 @@
 use super::models::user::{ User, CreateUser };
 use rocket_contrib::JSON;
+use super::error::Error;
 
-fn error_json(string: String) -> String {
+fn error_json(error: Error) -> String {
     json!({
-        "message": string
+        "message": error.to_string()
     }).to_string()
 }
 
@@ -11,7 +12,7 @@ fn error_json(string: String) -> String {
 pub fn sign_up(create_user: JSON<CreateUser>) -> String {
     let new_user = match create_user.0.insertable() {
         Ok(new_user) => new_user,
-        Err(m) => return error_json(m.to_string()),
+        Err(m) => return error_json(m),
     };
 
     let user = new_user.save();

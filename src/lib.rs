@@ -30,6 +30,7 @@ use std::env;
 pub mod schema;
 pub mod models;
 pub mod routes;
+pub mod error;
 
 type ManagedConnection = ConnectionManager<PgConnection>;
 type ConnectionPool = Pool<ManagedConnection>;
