@@ -174,4 +174,20 @@ impl CreateUser {
     pub fn insertable(&self) -> Result<NewUser> {
         NewUser::new(&self.username, &self.password)
     }
+
+    pub fn authenticate(&self) -> Result<User> {
+        use super::super::schema::users::dsl::*;
+
+        let conn = DB_POOL.get()?;
+        let db = DB(conn);
+
+        let user: User = users.filter(username.eq(&self.username))
+            .first(db.conn())?;
+
+        if user.verify_password(&self.password)? {
+            Ok(user)
+        } else {
+            Err(Error::PasswordMatchError)
+        }
+    }
 }
