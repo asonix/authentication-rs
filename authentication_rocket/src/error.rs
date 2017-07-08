@@ -1,5 +1,6 @@
 use rocket::response::{self, Responder};
 use rocket::http::Status;
+use rocket::request::Request;
 use rocket::Response;
 use rocket_contrib::JSON;
 use authentication_backend::error;
@@ -19,7 +20,7 @@ impl ToString for Error {
 }
 
 impl<'r> Responder<'r> for Error {
-    fn respond(self) -> response::Result<'r> {
+    fn respond_to(self, req: &Request) -> response::Result<'r> {
         let status = match self.0 {
             error::Error::GetDbError => Status::InternalServerError,
             error::Error::NoResultError => Status::NotFound,
@@ -34,7 +35,7 @@ impl<'r> Responder<'r> for Error {
             error::Error::IOError => Status::InternalServerError,
         };
 
-        let json_response = JSON(ErrorResponse::from_error(self)).respond()?;
+        let json_response = JSON(ErrorResponse::from_error(self)).respond_to(req)?;
 
         let response = Response::build()
             .status(status)

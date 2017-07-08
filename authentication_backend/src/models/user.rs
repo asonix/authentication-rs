@@ -2,8 +2,8 @@ use diesel;
 use schema::users;
 use config::DB;
 use CONFIG;
+use webtoken::Claims;
 use bcrypt::{DEFAULT_COST, hash, verify, BcryptResult};
-use frank_jwt::{Header, Payload, Algorithm, encode, decode};
 use error::{Error, Result};
 use diesel::prelude::*;
 
@@ -95,16 +95,9 @@ impl User {
             return Err(Error::UserNotVerifiedError);
         }
 
-        let mut payload = Payload::new();
-        payload.insert("id".to_string(), self.id.to_string());
-        payload.insert("username".to_string(), self.username.clone());
-        let header = Header::new(Algorithm::HS256);
+        let token = Claims::new(self.id, &self.username).to_token()?;
 
-        Ok(encode(
-            header,
-            CONFIG.jwt_secret().to_string(),
-            payload.clone(),
-        ))
+        Ok(token)
     }
 
     pub fn from_webtoken(webtoken: String) -> Result<Self> {
@@ -112,19 +105,11 @@ impl User {
 
         let db = CONFIG.db()?;
 
-        let (_header, payload) =
-            decode(webtoken, CONFIG.jwt_secret().to_string(), Algorithm::HS256)?;
-
-        let user_id = match payload.get("id") {
-            Some(user_id) => user_id,
-            None => return Err(Error::InvalidWebtokenError),
-        };
-
-        let user_id: i32 = user_id.parse::<i32>()?;
+        let claims = Claims::from_token(webtoken)?;
 
         let user = users
             .filter(verified.eq(true))
-            .filter(id.eq(user_id))
+            .filter(id.eq(claims.user_id()))
             .first::<Self>(db.conn())?;
 
         Ok(user)

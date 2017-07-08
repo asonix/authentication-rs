@@ -1,5 +1,6 @@
 use std::ops::Try;
 use std::result;
+use rocket::request::Request;
 use rocket::response::{self, Responder};
 use rocket_contrib::JSON;
 use authentication_backend::models::user::User;
@@ -106,10 +107,10 @@ impl Try for AuthResult {
 }
 
 impl<'r> Responder<'r> for AuthResult {
-    fn respond(self) -> response::Result<'r> {
+    fn respond_to(self, req: &Request) -> response::Result<'r> {
         match self {
-            AuthResult::Ok(json) => json.respond(),
-            AuthResult::Err(err) => err.respond(),
+            AuthResult::Ok(json) => json.respond_to(req),
+            AuthResult::Err(err) => err.respond_to(req),
         }
     }
 }

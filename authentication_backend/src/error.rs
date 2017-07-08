@@ -1,10 +1,11 @@
 use diesel;
 use bcrypt;
-use frank_jwt;
 use std::io;
 use std::result;
 use std::num;
 use r2d2::GetTimeout;
+use jwt::errors;
+use jwt::errors::ErrorKind;
 
 pub enum Error {
     GetDbError,
@@ -61,10 +62,10 @@ impl From<bcrypt::BcryptError> for Error {
     }
 }
 
-impl From<frank_jwt::Error> for Error {
-    fn from(e: frank_jwt::Error) -> Error {
-        match e {
-            frank_jwt::Error::SignatureExpired => Error::ExpiredWebtokenError,
+impl From<errors::Error> for Error {
+    fn from(e: errors::Error) -> Error {
+        match *e.kind() {
+            ErrorKind::ExpiredSignature => Error::ExpiredWebtokenError,
             _ => Error::InvalidWebtokenError,
         }
     }

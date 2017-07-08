@@ -14,8 +14,8 @@ mod routes;
 mod error;
 mod auth_result;
 
-pub fn launch() {
-    rocket::ignite()
+pub fn launch() -> () {
+    let error = rocket::ignite()
         .mount(
             "/",
             routes![
@@ -25,7 +25,9 @@ pub fn launch() {
                 routes::verify,
             ],
         )
-        .launch()
+        .launch();
+
+    panic!("Launch failed! Error: {}", error)
 }
 
 #[cfg(test)]

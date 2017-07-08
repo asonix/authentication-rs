@@ -6,10 +6,14 @@ extern crate diesel;
 extern crate diesel_codegen;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate serde_derive;
 
+extern crate serde;
+extern crate serde_json;
 extern crate rand;
 extern crate dotenv;
-extern crate frank_jwt;
+extern crate jsonwebtoken as jwt;
 extern crate bcrypt;
 extern crate r2d2;
 extern crate r2d2_diesel;
@@ -20,6 +24,7 @@ pub mod schema;
 pub mod models;
 pub mod error;
 pub mod config;
+pub mod webtoken;
 
 lazy_static! {
     pub static ref CONFIG: Config = Config::initialize();
