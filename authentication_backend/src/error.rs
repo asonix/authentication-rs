@@ -1,13 +1,10 @@
-extern crate diesel;
-extern crate r2d2;
-extern crate bcrypt;
-extern crate frank_jwt;
-
+use diesel;
+use bcrypt;
+use frank_jwt;
 use std::io;
 use std::result;
 use std::num;
-use rocket::response::{self, Responder};
-use rocket::http::Status;
+use r2d2::GetTimeout;
 
 pub enum Error {
     GetDbError,
@@ -24,27 +21,6 @@ pub enum Error {
 }
 
 pub type Result<T> = result::Result<T, Error>;
-
-impl<'r> Responder<'r> for Error {
-    fn respond(self) -> response::Result<'r> {
-        let status = match self {
-            Error::GetDbError => Status::InternalServerError,
-            Error::NoResultError => Status::NotFound,
-            Error::DieselError => Status::InternalServerError,
-            Error::PasswordHashError => Status::InternalServerError,
-            Error::InvalidPasswordError => Status::BadRequest,
-            Error::PasswordMatchError => Status::Unauthorized,
-            Error::UserNotVerifiedError => Status::Unauthorized,
-            Error::InvalidWebtokenError => Status::Unauthorized,
-            Error::ExpiredWebtokenError => Status::Unauthorized,
-            Error::ParseError => Status::InternalServerError,
-            Error::IOError => Status::InternalServerError,
-        };
-
-        Err(status)
-    }
-}
-
 
 impl ToString for Error {
     fn to_string(&self) -> String {
@@ -73,8 +49,8 @@ impl From<diesel::result::Error> for Error {
     }
 }
 
-impl From<r2d2::GetTimeout> for Error {
-    fn from(_: r2d2::GetTimeout) -> Error {
+impl From<GetTimeout> for Error {
+    fn from(_: GetTimeout) -> Error {
         Error::GetDbError
     }
 }

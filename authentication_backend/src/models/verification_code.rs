@@ -1,8 +1,7 @@
-extern crate diesel;
-
+use diesel;
 use schema::verification_codes;
 use models::user::User;
-use {DB_POOL, DB};
+use CONFIG;
 use error::Result;
 use diesel::prelude::*;
 
@@ -47,8 +46,7 @@ impl CreateVerificationCode {
     pub fn new_by_username(uname: String) -> Result<Self> {
         use schema::users::dsl::*;
 
-        let conn = DB_POOL.get()?;
-        let db = DB(conn);
+        let db = CONFIG.db()?;
 
         let user: User = users.filter(username.eq(uname)).first::<User>(db.conn())?;
 
@@ -70,8 +68,7 @@ impl CreateVerificationCode {
     pub fn save(&self) -> Result<VerificationCode> {
         use schema::verification_codes;
 
-        let conn = DB_POOL.get()?;
-        let db = DB(conn);
+        let db = CONFIG.db()?;
 
         let verification_code = diesel::insert(self)
             .into(verification_codes::table)

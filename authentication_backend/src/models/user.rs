@@ -1,7 +1,7 @@
-extern crate diesel;
-
+use diesel;
 use schema::users;
-use {DB_POOL, DB, JWT_SECRET};
+use config::DB;
+use CONFIG;
 use bcrypt::{DEFAULT_COST, hash, verify, BcryptResult};
 use frank_jwt::{Header, Payload, Algorithm, encode, decode};
 use error::{Error, Result};
@@ -22,12 +22,6 @@ pub struct NewUser {
     password: String,
 }
 
-#[derive(Deserialize)]
-pub struct CreateUser {
-    pub username: String,
-    pub password: String,
-}
-
 impl User {
     pub fn id(&self) -> i32 {
         self.id
@@ -46,8 +40,7 @@ impl User {
         use schema::users::dsl::*;
         use models::verification_code::VerificationCode;
 
-        let conn = DB_POOL.get()?;
-        let db = DB(conn);
+        let db = CONFIG.db()?;
 
         let (_, mut user) = verification_codes
             .inner_join(users)
@@ -59,8 +52,7 @@ impl User {
             return Err(Error::UserNotVerifiedError);
         }
 
-        let conn = DB_POOL.get()?;
-        let db = DB(conn);
+        let db = CONFIG.db()?;
 
         let _ = diesel::delete(verification_codes.filter(code.eq(&vc)))
             .execute(db.conn())?;
@@ -108,16 +100,20 @@ impl User {
         payload.insert("username".to_string(), self.username.clone());
         let header = Header::new(Algorithm::HS256);
 
-        Ok(encode(header, JWT_SECRET.to_string(), payload.clone()))
+        Ok(encode(
+            header,
+            CONFIG.jwt_secret().to_string(),
+            payload.clone(),
+        ))
     }
 
     pub fn from_webtoken(webtoken: String) -> Result<Self> {
         use schema::users::dsl::*;
 
-        let conn = DB_POOL.get()?;
-        let db = DB(conn);
+        let db = CONFIG.db()?;
 
-        let (_header, payload) = decode(webtoken, JWT_SECRET.to_string(), Algorithm::HS256)?;
+        let (_header, payload) =
+            decode(webtoken, CONFIG.jwt_secret().to_string(), Algorithm::HS256)?;
 
         let user_id = match payload.get("id") {
             Some(user_id) => user_id,
@@ -132,6 +128,20 @@ impl User {
             .first::<Self>(db.conn())?;
 
         Ok(user)
+    }
+
+    pub fn authenticate(uname: &str, pword: &str) -> Result<Self> {
+        use schema::users::dsl::*;
+
+        let db = CONFIG.db()?;
+
+        let user: User = users.filter(username.eq(uname)).first(db.conn())?;
+
+        if user.verify_password(pword)? {
+            Ok(user)
+        } else {
+            Err(Error::PasswordMatchError)
+        }
     }
 }
 
@@ -155,8 +165,7 @@ impl NewUser {
         use schema::users;
         use models::verification_code::CreateVerificationCode;
 
-        let conn = DB_POOL.get()?;
-        let db = DB(conn);
+        let db = CONFIG.db()?;
 
         let user: User = diesel::insert(self).into(users::table).get_result(
             db.conn(),
@@ -167,26 +176,5 @@ impl NewUser {
         let _ = verification_code.save()?;
 
         Ok(user)
-    }
-}
-
-impl CreateUser {
-    pub fn insertable(&self) -> Result<NewUser> {
-        NewUser::new(&self.username, &self.password)
-    }
-
-    pub fn authenticate(&self) -> Result<User> {
-        use schema::users::dsl::*;
-
-        let conn = DB_POOL.get()?;
-        let db = DB(conn);
-
-        let user: User = users.filter(username.eq(&self.username)).first(db.conn())?;
-
-        if user.verify_password(&self.password)? {
-            Ok(user)
-        } else {
-            Err(Error::PasswordMatchError)
-        }
     }
 }

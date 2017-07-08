@@ -1,6 +1,23 @@
-use models::user::{User, CreateUser};
+use authentication_backend::models::user::{User, NewUser};
+use authentication_backend::error::Result;
 use auth_result::AuthResult;
 use rocket_contrib::JSON;
+
+#[derive(Deserialize)]
+pub struct CreateUser {
+    pub username: String,
+    pub password: String,
+}
+
+impl CreateUser {
+    pub fn insertable(&self) -> Result<NewUser> {
+        NewUser::new(&self.username, &self.password)
+    }
+
+    pub fn authenticate(&self) -> Result<User> {
+        User::authenticate(&self.username, &self.password)
+    }
+}
 
 #[derive(Deserialize)]
 pub struct Token {

@@ -2,7 +2,7 @@ use std::ops::Try;
 use std::result;
 use rocket::response::{self, Responder};
 use rocket_contrib::JSON;
-use models::user::User;
+use authentication_backend::models::user::User;
 use error::Error;
 
 #[derive(Serialize)]

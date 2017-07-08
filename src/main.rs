@@ -1,14 +1,7 @@
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
+extern crate authentication_rocket;
 
-extern crate authentication;
-extern crate rocket;
+use authentication_rocket::launch;
 
 fn main() {
-    rocket::ignite().mount("/", routes![
-                           authentication::routes::sign_up,
-                           authentication::routes::log_in,
-                           authentication::routes::is_authenticated,
-                           authentication::routes::verify,
-    ]).launch()
+    launch();
 }
