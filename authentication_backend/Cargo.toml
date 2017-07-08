@@ -6,7 +6,9 @@ authors = ["Riley Trautman <asonix.dev@gmail.com>"]
 [dependencies]
 diesel = { version = "0.13.0", features = ["postgres"] }
 diesel_codegen = { version = "0.13.0", features = ["postgres"] }
-dotenv = "0.9.0"
+dotenv = "0.10"
+dotenv_macros = "0.10"
+syntex = "0.58"
 jsonwebtoken = "2"
 serde = "1.0"
 serde_derive = "1.0"

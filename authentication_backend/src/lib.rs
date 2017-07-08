@@ -1,4 +1,5 @@
 #![feature(plugin, custom_derive, custom_attribute)]
+#![plugin(dotenv_macros)]
 
 #[macro_use]
 extern crate diesel;
@@ -27,7 +28,7 @@ pub mod config;
 pub mod webtoken;
 
 lazy_static! {
-    pub static ref CONFIG: Config = Config::initialize();
+    pub static ref CONFIG: Config<'static> = Config::initialize();
 }
 
 #[cfg(test)]

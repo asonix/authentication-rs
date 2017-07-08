@@ -1,5 +1,5 @@
 use CONFIG;
-use jwt::{encode, decode, Header, Algorithm, Validation};
+use jwt::{Header, Algorithm, Validation};
 use error::Result;
 
 #[derive(Serialize, Deserialize)]
@@ -22,21 +22,14 @@ impl Claims {
 
     pub fn to_token(&self) -> Result<String> {
         let mut header = Header::default();
-        header.alg = Algorithm::HS512;
+        header.alg = Algorithm::RS512;
 
-        let secret = &CONFIG.jwt_secret();
-
-        let token = encode(&header, &self, secret.as_ref())?;
-
-        Ok(token)
+        CONFIG.jwt_secret().encode(&header, &self)
     }
 
     pub fn from_token(token: String) -> Result<Self> {
         let validation = &Validation::default();
-        let secret = &CONFIG.jwt_secret();
 
-        let token_data = decode::<Claims>(&token, secret.as_ref(), validation)?;
-
-        Ok(token_data.claims)
+        CONFIG.jwt_secret().decode(&token, validation)
     }
 }

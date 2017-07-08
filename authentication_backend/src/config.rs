@@ -1,5 +1,8 @@
 use std::env;
 use dotenv::dotenv;
+use webtoken::Claims;
+use jwt;
+use jwt::{Header, Validation};
 use diesel::pg::PgConnection;
 use r2d2;
 use r2d2::{Pool, PooledConnection};
@@ -17,12 +20,31 @@ impl DB {
     }
 }
 
-pub struct Config {
-    jwt_secret: String,
+pub struct JWTSecret<'a> {
+    public_key: &'a [u8],
+    private_key: &'a [u8],
+}
+
+impl<'a> JWTSecret<'a> {
+    pub fn encode(&self, header: &Header, claims: &Claims) -> Result<String> {
+        let token = jwt::encode(header, claims, self.private_key)?;
+
+        Ok(token)
+    }
+
+    pub fn decode(&self, token: &str, validation: &Validation) -> Result<Claims> {
+        let token_data = jwt::decode::<Claims>(token, self.public_key, validation)?;
+
+        Ok(token_data.claims)
+    }
+}
+
+pub struct Config<'a> {
+    jwt_secret: JWTSecret<'a>,
     db_pool: ConnectionPool,
 }
 
-impl Config {
+impl<'a> Config<'a> {
     pub fn initialize() -> Self {
         Config {
             jwt_secret: get_jwt_secret(),
@@ -34,7 +56,7 @@ impl Config {
         Ok(DB(self.db_pool.get()?))
     }
 
-    pub fn jwt_secret(&self) -> &str {
+    pub fn jwt_secret(&self) -> &JWTSecret {
         &self.jwt_secret
     }
 }
@@ -55,8 +77,11 @@ fn create_db_pool() -> ConnectionPool {
     ))
 }
 
-fn get_jwt_secret() -> String {
+fn get_jwt_secret<'a>() -> JWTSecret<'a> {
     dotenv().ok();
 
-    env::var("JWT_SECRET").expect("JWT_SECRET must be set")
+    JWTSecret {
+        private_key: include_bytes!(env!("JWT_PRIVATE_KEY")),
+        public_key: include_bytes!(env!("JWT_PUBLIC_KEY")),
+    }
 }
