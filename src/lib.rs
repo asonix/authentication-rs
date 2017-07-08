@@ -1,11 +1,15 @@
-#![feature(plugin, custom_derive, custom_attribute)]
+#![feature(plugin, custom_derive, custom_attribute, try_trait)]
 #![plugin(rocket_codegen)]
 
-#[macro_use] extern crate diesel;
-#[macro_use] extern crate diesel_codegen;
-#[macro_use] extern crate lazy_static;
-#[macro_use] extern crate serde_json;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_codegen;
+#[macro_use]
+extern crate lazy_static;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 
 extern crate rand;
 extern crate serde;
@@ -22,7 +26,7 @@ use rocket::Outcome::{Success, Failure};
 use rocket::http::Status;
 use rocket::Request;
 use diesel::pg::PgConnection;
-use r2d2::{ Pool, PooledConnection, GetTimeout };
+use r2d2::{Pool, PooledConnection, GetTimeout};
 use r2d2_diesel::ConnectionManager;
 use dotenv::dotenv;
 use std::env;
@@ -31,6 +35,7 @@ pub mod schema;
 pub mod models;
 pub mod routes;
 pub mod error;
+pub mod auth_result;
 
 type ManagedConnection = ConnectionManager<PgConnection>;
 type ConnectionPool = Pool<ManagedConnection>;
@@ -61,18 +66,17 @@ impl<'a, 'r> FromRequest<'a, 'r> for DB {
 fn create_db_pool() -> ConnectionPool {
     dotenv().ok();
 
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     let kept_url = database_url.clone();
 
     let config = r2d2::Config::default();
     let manager = ConnectionManager::<PgConnection>::new(database_url);
-    
-    r2d2::Pool::new(config, manager)
-        .expect(&format!(
-                "Could not create connection pool for: {}",
-                kept_url))
+
+    r2d2::Pool::new(config, manager).expect(&format!(
+        "Could not create connection pool for: {}",
+        kept_url
+    ))
 }
 
 fn get_jwt_secret() -> String {
@@ -84,6 +88,5 @@ fn get_jwt_secret() -> String {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn it_works() {
-    }
+    fn it_works() {}
 }

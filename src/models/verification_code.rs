@@ -1,9 +1,9 @@
 extern crate diesel;
 
-use super::super::schema::verification_codes;
-use super::user::User;
-use super::super::{ DB_POOL, DB };
-use super::super::error::{ Result };
+use schema::verification_codes;
+use models::user::User;
+use {DB_POOL, DB};
+use error::Result;
 use diesel::prelude::*;
 
 #[derive(Queryable, Identifiable, Associations)]
@@ -15,7 +15,7 @@ pub struct VerificationCode {
 }
 
 #[derive(Insertable)]
-#[table_name="verification_codes"]
+#[table_name = "verification_codes"]
 pub struct CreateVerificationCode {
     code: String,
     user_id: i32,
@@ -45,14 +45,12 @@ impl VerificationCode {
 
 impl CreateVerificationCode {
     pub fn new_by_username(uname: String) -> Result<Self> {
-        use super::super::schema::users::dsl::*;
-        use super::user::User;
+        use schema::users::dsl::*;
 
         let conn = DB_POOL.get()?;
         let db = DB(conn);
 
-        let user: User = users.filter(username.eq(uname))
-            .first::<User>(db.conn())?;
+        let user: User = users.filter(username.eq(uname)).first::<User>(db.conn())?;
 
         Self::new_by_id(user.id())
     }

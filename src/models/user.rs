@@ -1,10 +1,10 @@
 extern crate diesel;
 
-use super::super::schema::users;
-use super::super::{ DB_POOL, DB, JWT_SECRET };
+use schema::users;
+use {DB_POOL, DB, JWT_SECRET};
 use bcrypt::{DEFAULT_COST, hash, verify, BcryptResult};
 use frank_jwt::{Header, Payload, Algorithm, encode, decode};
-use super::super::error::{ Error, Result };
+use error::{Error, Result};
 use diesel::prelude::*;
 
 #[derive(Queryable, Identifiable, AsChangeset, Associations)]
@@ -16,7 +16,7 @@ pub struct User {
 }
 
 #[derive(Insertable)]
-#[table_name="users"]
+#[table_name = "users"]
 pub struct NewUser {
     username: String,
     password: String,
@@ -42,14 +42,15 @@ impl User {
     }
 
     pub fn verify_with_code(vc: String) -> Result<Self> {
-        use super::super::schema::verification_codes::dsl::{verification_codes, code, user_id};
-        use super::super::schema::users::dsl::*;
-        use super::verification_code::VerificationCode;
+        use schema::verification_codes::dsl::{verification_codes, code, user_id};
+        use schema::users::dsl::*;
+        use models::verification_code::VerificationCode;
 
         let conn = DB_POOL.get()?;
         let db = DB(conn);
 
-        let (_, mut user) = verification_codes.inner_join(users)
+        let (_, mut user) = verification_codes
+            .inner_join(users)
             .filter(id.eq(user_id))
             .filter(code.eq(&vc))
             .first::<(VerificationCode, User)>(db.conn())?;
@@ -68,7 +69,7 @@ impl User {
     }
 
     fn verify(&mut self, db: DB) -> bool {
-        use super::super::schema::users::dsl::*;
+        use schema::users::dsl::*;
 
         let updated_record = diesel::update(users.filter(id.eq(self.id)))
             .set(verified.eq(true))
@@ -78,7 +79,7 @@ impl User {
             Ok(_) => {
                 self.verified = true;
                 true
-            },
+            }
             Err(_) => false,
         }
     }
@@ -111,14 +112,12 @@ impl User {
     }
 
     pub fn from_webtoken(webtoken: String) -> Result<Self> {
-        use super::super::schema::users::dsl::*;
+        use schema::users::dsl::*;
 
         let conn = DB_POOL.get()?;
         let db = DB(conn);
 
-        let (_header, payload) = decode(webtoken,
-                             JWT_SECRET.to_string(),
-                             Algorithm::HS256)?;
+        let (_header, payload) = decode(webtoken, JWT_SECRET.to_string(), Algorithm::HS256)?;
 
         let user_id = match payload.get("id") {
             Some(user_id) => user_id,
@@ -127,7 +126,8 @@ impl User {
 
         let user_id: i32 = user_id.parse::<i32>()?;
 
-        let user = users.filter(verified.eq(true))
+        let user = users
+            .filter(verified.eq(true))
             .filter(id.eq(user_id))
             .first::<Self>(db.conn())?;
 
@@ -153,14 +153,14 @@ impl NewUser {
 
     pub fn save(&self) -> Result<User> {
         use schema::users;
-        use super::verification_code::CreateVerificationCode;
+        use models::verification_code::CreateVerificationCode;
 
         let conn = DB_POOL.get()?;
         let db = DB(conn);
 
-        let user: User = diesel::insert(self)
-            .into(users::table)
-            .get_result(db.conn())?;
+        let user: User = diesel::insert(self).into(users::table).get_result(
+            db.conn(),
+        )?;
 
         let verification_code = CreateVerificationCode::new_by_id(user.id)?;
 
@@ -176,13 +176,12 @@ impl CreateUser {
     }
 
     pub fn authenticate(&self) -> Result<User> {
-        use super::super::schema::users::dsl::*;
+        use schema::users::dsl::*;
 
         let conn = DB_POOL.get()?;
         let db = DB(conn);
 
-        let user: User = users.filter(username.eq(&self.username))
-            .first(db.conn())?;
+        let user: User = users.filter(username.eq(&self.username)).first(db.conn())?;
 
         if user.verify_password(&self.password)? {
             Ok(user)
