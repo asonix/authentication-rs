@@ -130,7 +130,6 @@ impl User {
     }
 
     pub fn delete(uname: &str, pword: &str) -> Result<()> {
-        use schema::verification_codes::dsl::{verification_codes, user_id};
         use schema::users::dsl::*;
 
         let db = CONFIG.db()?;
@@ -138,11 +137,6 @@ impl User {
         let user: User = users.filter(username.eq(uname)).first(db.conn())?;
 
         if user.verify_password(pword)? {
-            if !user.is_verified() {
-                diesel::delete(verification_codes.filter(user_id.eq(user.id)))
-                    .execute(db.conn())?;
-            }
-
             diesel::delete(users.filter(username.eq(uname))).execute(
                 db.conn(),
             )?;
@@ -188,6 +182,74 @@ mod tests {
     use schema::users::dsl::*;
     use super::*;
     use std::panic;
+
+    #[test]
+    fn delete_deletes_existing_user() {
+        user_test(|_| {
+            let result = User::delete("username", "password$.");
+
+            assert!(result.is_ok(), "Failed to delete existing user");
+        });
+    }
+
+    #[test]
+    fn delete_deletes_associated_verification_code() {
+        user_test(|user| {
+            let vc = verification_codes.filter(user_id.eq(user.id)).execute(
+                CONFIG
+                    .db()
+                    .unwrap()
+                    .conn(),
+            );
+
+            assert!(vc.is_ok(), "Could not get verification_code for user");
+
+            let _ = User::delete("username", "password$.");
+
+            let vc = verification_codes.filter(user_id.eq(user.id)).execute(
+                CONFIG
+                    .db()
+                    .unwrap()
+                    .conn(),
+            );
+
+            assert!(!vc.is_ok(), "Verification code still exists after delete");
+        });
+    }
+
+    fn user_test<T>(test: T) -> ()
+    where
+        T: FnOnce(User) -> () + panic::UnwindSafe,
+    {
+        use rand::Rng;
+        use rand::OsRng;
+
+        let uname: String = OsRng::new().unwrap().gen_ascii_chars().take(10).collect();
+        let new_user = NewUser::new(&uname, "password$.");
+
+        match new_user {
+            Ok(new_user) => {
+                match new_user.save() {
+                    Ok(user) => {
+                        let _ = panic::catch_unwind(|| test(user));
+                        ()
+                    }
+                    Err(_) => {
+                        teardown(&uname);
+                        assert!(false, "Failed to create User for user test");
+                    }
+                };
+            }
+            Err(_) => {
+                teardown(&uname);
+                assert!(false, "Failed to create NewUser for user test");
+            }
+        };
+
+        teardown(&uname);
+    }
+
+    // NewUser tests
 
     #[test]
     fn new_creates_new_user() {
@@ -261,13 +323,10 @@ mod tests {
         });
     }
 
-    fn save_setup() -> Result<NewUser> {
-        NewUser::new("username", "password$.")
-    }
+    fn teardown(uname: &str) -> () {
+        let _ =
+            diesel::delete(users.filter(username.eq(uname))).execute(CONFIG.db().unwrap().conn());
 
-    fn save_teardown() -> () {
-        let _ = diesel::delete(users.filter(username.eq("username")))
-            .execute(CONFIG.db().unwrap().conn());
         ()
     }
 
@@ -275,7 +334,11 @@ mod tests {
     where
         T: FnOnce(NewUser) -> () + panic::UnwindSafe,
     {
-        let new_user = save_setup();
+        use rand::Rng;
+        use rand::OsRng;
+
+        let uname: String = OsRng::new().unwrap().gen_ascii_chars().take(10).collect();
+        let new_user = NewUser::new(&uname, "password$.");
 
         match new_user {
             Ok(new_user) => {
@@ -283,10 +346,11 @@ mod tests {
                 ()
             }
             Err(_) => {
+                teardown(&uname);
                 assert!(false, "Failed to create NewUser for save test");
             }
         };
 
-        save_teardown();
+        teardown(&uname);
     }
 }
