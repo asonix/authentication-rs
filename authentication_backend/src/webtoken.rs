@@ -27,9 +27,9 @@ impl Claims {
         CONFIG.jwt_secret().encode(&header, &self)
     }
 
-    pub fn from_token(token: String) -> Result<Self> {
+    pub fn from_token(token: &str) -> Result<Self> {
         let validation = &Validation::default();
 
-        CONFIG.jwt_secret().decode(&token, validation)
+        CONFIG.jwt_secret().decode(token, validation)
     }
 }

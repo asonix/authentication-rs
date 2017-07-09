@@ -21,7 +21,7 @@ pub struct CreateVerificationCode {
 }
 
 impl VerificationCode {
-    pub fn new_by_username(username: String) -> Result<CreateVerificationCode> {
+    pub fn new_by_username(username: &str) -> Result<CreateVerificationCode> {
         CreateVerificationCode::new_by_username(username)
     }
 
@@ -33,8 +33,8 @@ impl VerificationCode {
         self.id
     }
 
-    pub fn code(&self) -> String {
-        self.code.clone()
+    pub fn code(&self) -> &str {
+        &self.code
     }
 
     pub fn user_id(&self) -> i32 {
@@ -43,7 +43,7 @@ impl VerificationCode {
 }
 
 impl CreateVerificationCode {
-    pub fn new_by_username(uname: String) -> Result<Self> {
+    pub fn new_by_username(uname: &str) -> Result<Self> {
         use schema::users::dsl::*;
 
         let db = CONFIG.db()?;
@@ -81,6 +81,29 @@ impl CreateVerificationCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::panic;
+
+    #[test]
+    fn new_by_username_creates_verification_code() {
+        with_user(|user| {
+            let result = CreateVerificationCode::new_by_username(&user.username());
+
+            assert!(
+                result.is_ok(),
+                "Failed to create verification_code for user"
+            );
+        });
+    }
+
+    #[test]
+    fn new_by_username_fails_with_bad_username() {
+        let result = CreateVerificationCode::new_by_username("this username doesn't exist");
+
+        assert!(
+            !result.is_ok(),
+            "Created verification_code for invalid User"
+        );
+    }
 
     #[test]
     fn new_by_id_makes_create_verification_code() {
@@ -121,11 +144,32 @@ mod tests {
         );
     }
 
+    fn with_user<T>(test: T) -> ()
+    where
+        T: FnOnce(User) -> () + panic::UnwindSafe,
+    {
+        use models::user::NewUser;
+
+        let uname: String = generate_username();
+        let new_user = NewUser::new(&uname, test_password_one()).expect(
+            "Failed to create NewUser for with_user",
+        );
+        let user = new_user.save().expect("Failed to save User for with_user");
+
+        let u_id = user.id();
+        let _ = panic::catch_unwind(|| test(user));
+        teardown_by_user_id(u_id);
+    }
+
     fn generate_username() -> String {
         use rand::Rng;
         use rand::OsRng;
 
         OsRng::new().unwrap().gen_ascii_chars().take(10).collect()
+    }
+
+    fn test_password_one() -> &'static str {
+        "Passw0rd$."
     }
 
     fn teardown_by_user_id(u_id: i32) -> () {

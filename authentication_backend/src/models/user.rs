@@ -130,7 +130,7 @@ impl User {
         Ok(token)
     }
 
-    pub fn from_webtoken(webtoken: String) -> Result<Self> {
+    pub fn from_webtoken(webtoken: &str) -> Result<Self> {
         use schema::users::dsl::*;
 
         let db = CONFIG.db()?;
@@ -257,7 +257,7 @@ mod tests {
 
     #[test]
     fn update_password_updates_password() {
-        user_test(|mut user| {
+        with_user(|mut user| {
             let result = user.update_password(test_password_one(), "P455w0rd$.");
 
             assert!(result.is_ok(), "Failed to update password");
@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn update_password_fails_with_bad_credentials() {
-        user_test(|mut user| {
+        with_user(|mut user| {
             let result = user.update_password("not the password", test_password_one());
 
             assert!(!result.is_ok(), "Updated password with bad credentials");
@@ -275,7 +275,7 @@ mod tests {
 
     #[test]
     fn update_password_fails_with_weak_password() {
-        user_test(|mut user| {
+        with_user(|mut user| {
             let result = user.update_password(test_password_one(), "asdfasdfasdf");
 
             assert!(!result.is_ok(), "Allowed update to weak password");
@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn update_username_updates_username() {
-        user_test(|mut user| {
+        with_user(|mut user| {
             let result = user.update_username("some_new_username", test_password_one());
 
             assert!(result.is_ok(), "Failed to update username");
@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn update_username_fails_with_empty_username() {
-        user_test(|mut user| {
+        with_user(|mut user| {
             let result = user.update_username("", test_password_one());
 
             assert!(!result.is_ok(), "Updated username to empty string");
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn update_username_fails_with_bad_password() {
-        user_test(|mut user| {
+        with_user(|mut user| {
             let result = user.update_username("new_username", "not the password");
 
             assert!(!result.is_ok(), "Updated username with bad credentials");
@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn verify_with_code_verifies_user() {
-        user_test(|user| {
+        with_user(|user| {
             let vc = verification_codes
                 .filter(user_id.eq(user.id))
                 .first::<VerificationCode>(CONFIG.db().unwrap().conn())
@@ -327,7 +327,7 @@ mod tests {
 
     #[test]
     fn verify_with_code_deletes_code() {
-        user_test(|user| {
+        with_user(|user| {
             let vc = verification_codes
                 .filter(user_id.eq(user.id))
                 .first::<VerificationCode>(CONFIG.db().unwrap().conn())
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn verify_verifies_user() {
-        user_test(|mut user| {
+        with_user(|mut user| {
             let result = user.verify(CONFIG.db().unwrap());
 
             assert!(result, "Failed to verify user");
@@ -360,7 +360,7 @@ mod tests {
 
     #[test]
     fn create_webtoken_creates_webtoken() {
-        user_test(|mut user| {
+        with_user(|mut user| {
             user.verify(CONFIG.db().unwrap());
 
             let result = user.create_webtoken();
@@ -371,10 +371,10 @@ mod tests {
 
     #[test]
     fn from_webtoken_gets_user_from_valid_webtoken() {
-        user_test(|mut user| {
+        with_user(|mut user| {
             user.verify(CONFIG.db().unwrap());
             let token = user.create_webtoken().unwrap();
-            let result = User::from_webtoken(token);
+            let result = User::from_webtoken(&token);
 
             assert!(result.is_ok(), "Failed to fetch user from webtoken");
         });
@@ -382,9 +382,8 @@ mod tests {
 
     #[test]
     fn from_webtoken_fails_with_bad_webtoken() {
-        user_test(|_| {
-            let token: String = "this is not a token".to_string();
-            let result = User::from_webtoken(token);
+        with_user(|_| {
+            let result = User::from_webtoken("this is not a token");
 
             assert!(!result.is_ok(), "Fetched user from fake webtoken");
         });
@@ -392,7 +391,7 @@ mod tests {
 
     #[test]
     fn authenticate_fails_with_bad_username() {
-        user_test(|_| {
+        with_user(|_| {
             let result = User::authenticate("not the username", test_password_one());
 
             assert!(!result.is_ok(), "User should not have been authenticated");
@@ -401,7 +400,7 @@ mod tests {
 
     #[test]
     fn authenticate_fails_with_bad_password() {
-        user_test(|user| {
+        with_user(|user| {
             let result = User::authenticate(&user.username(), "not the password");
 
             assert!(!result.is_ok(), "User should not have been authenticated");
@@ -410,7 +409,7 @@ mod tests {
 
     #[test]
     fn authenticate_authenticates_user() {
-        user_test(|user| {
+        with_user(|user| {
             let result = User::authenticate(&user.username(), test_password_one());
 
             assert!(result.is_ok(), "Failed to authenticate user");
@@ -419,7 +418,7 @@ mod tests {
 
     #[test]
     fn delete_deletes_existing_user() {
-        user_test(|user| {
+        with_user(|user| {
             let result = User::delete(user.username(), test_password_one());
 
             assert!(result.is_ok(), "Failed to delete existing user");
@@ -428,7 +427,7 @@ mod tests {
 
     #[test]
     fn delete_deletes_associated_verification_code() {
-        user_test(|user| {
+        with_user(|user| {
             let vc = verification_codes.filter(user_id.eq(user.id)).execute(
                 CONFIG
                     .db()
@@ -451,33 +450,21 @@ mod tests {
         });
     }
 
-    fn user_test<T>(test: T) -> ()
+    fn with_user<T>(test: T) -> ()
     where
         T: FnOnce(User) -> () + panic::UnwindSafe,
     {
-        use rand::Rng;
-        use rand::OsRng;
+        let uname = generate_username();
+        let new_user = NewUser::new(&uname, test_password_one()).expect(
+            "Failed to create NewUser for with_user",
+        );
+        let user = new_user.save().expect(
+            "Failed to create User for with_user",
+        );
 
-        let uname: String = OsRng::new().unwrap().gen_ascii_chars().take(10).collect();
-        let new_user = NewUser::new(&uname, test_password_one());
-
-        match new_user {
-            Ok(new_user) => {
-                match new_user.save() {
-                    Ok(user) => {
-                        let u_id = user.id();
-                        let _ = panic::catch_unwind(|| test(user));
-                        teardown_by_id(u_id);
-                    }
-                    Err(_) => {
-                        assert!(false, "Failed to create User for user test");
-                    }
-                };
-            }
-            Err(_) => {
-                assert!(false, "Failed to create NewUser for user test");
-            }
-        };
+        let u_id = user.id();
+        let _ = panic::catch_unwind(|| test(user));
+        teardown_by_id(u_id);
     }
 
     // NewUser tests
