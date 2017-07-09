@@ -8,6 +8,7 @@ use r2d2;
 use r2d2::{Pool, PooledConnection};
 use r2d2_diesel::ConnectionManager;
 use error::Result;
+use regex::Regex;
 
 type ManagedConnection = ConnectionManager<PgConnection>;
 type ConnectionPool = Pool<ManagedConnection>;
@@ -17,6 +18,40 @@ pub struct DB(PooledConnection<ManagedConnection>);
 impl DB {
     pub fn conn(&self) -> &PgConnection {
         &*self.0
+    }
+}
+
+pub struct PasswordRegex {
+    numbers: Regex,
+    symbols: Regex,
+    upper: Regex,
+    lower: Regex,
+}
+
+impl PasswordRegex {
+    fn initialize() -> Self {
+        PasswordRegex {
+            numbers: Regex::new("[0-9]").unwrap(),
+            symbols: Regex::new("[!@#$%^&*();\\\\/|<>\"'_+\\-\\.,?=]").unwrap(),
+            upper: Regex::new("[A-Z]").unwrap(),
+            lower: Regex::new("[a-z]").unwrap(),
+        }
+    }
+
+    pub fn numbers(&self) -> &Regex {
+        &self.numbers
+    }
+
+    pub fn symbols(&self) -> &Regex {
+        &self.symbols
+    }
+
+    pub fn upper(&self) -> &Regex {
+        &self.upper
+    }
+
+    pub fn lower(&self) -> &Regex {
+        &self.lower
     }
 }
 
@@ -42,6 +77,7 @@ impl<'a> JWTSecret<'a> {
 pub struct Config<'a> {
     jwt_secret: JWTSecret<'a>,
     db_pool: ConnectionPool,
+    password_regex: PasswordRegex,
 }
 
 impl<'a> Config<'a> {
@@ -49,6 +85,7 @@ impl<'a> Config<'a> {
         Config {
             jwt_secret: get_jwt_secret(),
             db_pool: create_db_pool(),
+            password_regex: PasswordRegex::initialize(),
         }
     }
 
@@ -58,6 +95,10 @@ impl<'a> Config<'a> {
 
     pub fn jwt_secret(&self) -> &JWTSecret {
         &self.jwt_secret
+    }
+
+    pub fn password_regex(&self) -> &PasswordRegex {
+        &self.password_regex
     }
 }
 

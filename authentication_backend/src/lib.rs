@@ -18,6 +18,7 @@ extern crate jsonwebtoken as jwt;
 extern crate bcrypt;
 extern crate r2d2;
 extern crate r2d2_diesel;
+extern crate regex;
 
 use config::Config;
 
