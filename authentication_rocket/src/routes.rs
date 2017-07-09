@@ -32,7 +32,7 @@ pub struct TokenWithPassword {
 
 impl TokenWithPassword {
     fn delete(&self) -> Result<()> {
-        let user = User::from_webtoken(self.token.clone())?;
+        let user = User::from_webtoken(&self.token)?;
         User::delete(&user.username(), &self.password)
     }
 }
@@ -57,7 +57,7 @@ pub fn log_in(create_user: JSON<CreateUser>) -> AuthResult {
 
 #[post("/is-authenticated", format = "application/json", data = "<token>")]
 pub fn is_authenticated(token: JSON<Token>) -> AuthResult {
-    User::from_webtoken(token.0.token)?;
+    User::from_webtoken(&token.0.token)?;
 
     AuthResult::authenticated(None)
 }
