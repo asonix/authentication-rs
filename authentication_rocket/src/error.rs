@@ -27,6 +27,7 @@ impl<'r> Responder<'r> for Error {
             error::Error::DieselError => Status::InternalServerError,
             error::Error::PasswordHashError => Status::InternalServerError,
             error::Error::InvalidPasswordError => Status::BadRequest,
+            error::Error::InvalidUsernameError => Status::BadRequest,
             error::Error::PasswordMatchError => Status::Unauthorized,
             error::Error::UserNotVerifiedError => Status::Unauthorized,
             error::Error::InvalidWebtokenError => Status::Unauthorized,

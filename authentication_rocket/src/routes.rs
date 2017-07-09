@@ -64,7 +64,7 @@ pub fn is_authenticated(token: JSON<Token>) -> AuthResult {
 
 #[get("/verify/<verification_token>")]
 pub fn verify(verification_token: String) -> AuthResult {
-    let user = User::verify_with_code(verification_token)?;
+    let user = User::verify_with_code(&verification_token)?;
 
     let token = user.create_webtoken()?;
 
