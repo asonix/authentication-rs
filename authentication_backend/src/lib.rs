@@ -31,9 +31,3 @@ pub mod webtoken;
 lazy_static! {
     pub static ref CONFIG: Config<'static> = Config::initialize();
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {}
-}

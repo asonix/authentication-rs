@@ -30,9 +30,3 @@ pub fn launch() -> () {
 
     panic!("Launch failed! Error: {}", error)
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {}
-}
