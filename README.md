@@ -7,3 +7,4 @@ Hey! I'm developing this web service to help me learn Rust. Please tell me how t
  - `GET` to `/verify/<verification_code>` marks `User` as verified and deletes associated `VerificationCode`.
  - `POST` to `/is-authenticated` with `token` responds with whether the `token` is valid
  - `POST` to `/log-in` with a `username` and `password` responds with a `token`
+ - `POST` to `/delete` with a `token` and `password` deletes a `User`

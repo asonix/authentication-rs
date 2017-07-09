@@ -61,6 +61,13 @@ impl AuthResponse {
             data: ResponseBody::Token { token: token },
         }
     }
+
+    fn deleted() -> Self {
+        AuthResponse {
+            message: "Deleted".to_string(),
+            data: ResponseBody::NoData,
+        }
+    }
 }
 
 pub enum AuthResult {
@@ -83,6 +90,10 @@ impl AuthResult {
 
     pub fn user_verified(token: String) -> AuthResult {
         AuthResult::ok(AuthResponse::user_verified(token))
+    }
+
+    pub fn deleted() -> AuthResult {
+        AuthResult::ok(AuthResponse::deleted())
     }
 }
 

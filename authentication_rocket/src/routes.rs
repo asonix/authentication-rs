@@ -24,6 +24,19 @@ pub struct Token {
     token: String,
 }
 
+#[derive(Deserialize)]
+pub struct TokenWithPassword {
+    token: String,
+    password: String,
+}
+
+impl TokenWithPassword {
+    fn delete(&self) -> Result<()> {
+        let user = User::from_webtoken(self.token.clone())?;
+        User::delete(&user.username(), &self.password)
+    }
+}
+
 #[post("/sign-up", format = "application/json", data = "<create_user>")]
 pub fn sign_up(create_user: JSON<CreateUser>) -> AuthResult {
     let new_user = create_user.0.insertable()?;
@@ -56,4 +69,11 @@ pub fn verify(verification_token: String) -> AuthResult {
     let token = user.create_webtoken()?;
 
     AuthResult::user_verified(token)
+}
+
+#[post("/delete", format = "application/json", data = "<token_with_password>")]
+pub fn delete(token_with_password: JSON<TokenWithPassword>) -> AuthResult {
+    token_with_password.0.delete()?;
+
+    AuthResult::deleted()
 }

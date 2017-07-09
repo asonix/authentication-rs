@@ -23,6 +23,7 @@ pub fn launch() -> () {
                 routes::log_in,
                 routes::is_authenticated,
                 routes::verify,
+                routes::delete,
             ],
         )
         .launch();
