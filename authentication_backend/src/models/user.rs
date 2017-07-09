@@ -128,6 +128,30 @@ impl User {
             Err(Error::PasswordMatchError)
         }
     }
+
+    pub fn delete(uname: &str, pword: &str) -> Result<()> {
+        use schema::verification_codes::dsl::{verification_codes, user_id};
+        use schema::users::dsl::*;
+
+        let db = CONFIG.db()?;
+
+        let user: User = users.filter(username.eq(uname)).first(db.conn())?;
+
+        if user.verify_password(pword)? {
+            if !user.is_verified() {
+                diesel::delete(verification_codes.filter(user_id.eq(user.id)))
+                    .execute(db.conn())?;
+            }
+
+            diesel::delete(users.filter(username.eq(uname))).execute(
+                db.conn(),
+            )?;
+
+            Ok(())
+        } else {
+            Err(Error::PasswordMatchError)
+        }
+    }
 }
 
 impl NewUser {
