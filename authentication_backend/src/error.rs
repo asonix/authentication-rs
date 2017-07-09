@@ -6,6 +6,7 @@ use std::num;
 use r2d2::GetTimeout;
 use jwt::errors;
 use jwt::errors::ErrorKind;
+use std::fmt;
 
 pub enum Error {
     GetDbError,
@@ -22,6 +23,12 @@ pub enum Error {
 }
 
 pub type Result<T> = result::Result<T, Error>;
+
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
 
 impl ToString for Error {
     fn to_string(&self) -> String {

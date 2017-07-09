@@ -164,12 +164,6 @@ impl NewUser {
         })
     }
 
-    pub fn set_password(&mut self, password: &str) -> Result<()> {
-        let hash = hash(password, DEFAULT_COST)?;
-        self.password = hash;
-        Ok(())
-    }
-
     pub fn save(&self) -> Result<User> {
         use schema::users;
         use models::verification_code::CreateVerificationCode;
@@ -185,5 +179,114 @@ impl NewUser {
         let _ = verification_code.save()?;
 
         Ok(user)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use schema::verification_codes::dsl::{verification_codes, user_id};
+    use schema::users::dsl::*;
+    use super::*;
+    use std::panic;
+
+    #[test]
+    fn new_creates_new_user() {
+        let new_user: Result<NewUser> = NewUser::new("username", "password$.");
+
+        assert!(
+            new_user.is_ok(),
+            "Valid username and password failed to create NewUser"
+        );
+    }
+
+    #[test]
+    fn new_rejects_empty_usernames() {
+        let new_user: Result<NewUser> = NewUser::new("", "password$.");
+
+        assert!(!new_user.is_ok(), "Invalid username still created NewUser");
+    }
+
+    #[test]
+    fn new_rejects_short_passwords() {
+        let new_user: Result<NewUser> = NewUser::new("username", "asdf$.");
+
+        assert!(!new_user.is_ok(), "Short password still created NewUser");
+    }
+
+    #[test]
+    fn new_rejects_weak_passwords() {
+        let new_user: Result<NewUser> = NewUser::new("username", "asdfasdfasdf");
+
+        assert!(!new_user.is_ok(), "Weak password still created NewUser")
+    }
+
+    #[test]
+    fn save_creates_user() {
+        save_test(|new_user| {
+            let user: Result<User> = new_user.save();
+
+            assert!(user.is_ok(), "Failed to save NewUser");
+        });
+    }
+
+    #[test]
+    fn save_creates_verification_code() {
+        save_test(|new_user| {
+            let user: Result<User> = new_user.save();
+
+            match user {
+                Ok(user) => {
+                    let vc = verification_codes.filter(user_id.eq(user.id)).execute(
+                        CONFIG
+                            .db()
+                            .unwrap()
+                            .conn(),
+                    );
+
+                    assert!(vc.is_ok(), "Failed to create Verification Code for User");
+                }
+                _ => assert!(false, "Failed to save User"),
+            };
+        });
+    }
+
+    #[test]
+    fn cannot_save_multiple_identical_users() {
+        save_test(|new_user| {
+            let user: Result<User> = new_user.save();
+            let user2: Result<User> = new_user.save();
+
+            assert!(user.is_ok(), "Failed to save user");
+            assert!(!user2.is_ok(), "Saved user with same username");
+        });
+    }
+
+    fn save_setup() -> Result<NewUser> {
+        NewUser::new("username", "password$.")
+    }
+
+    fn save_teardown() -> () {
+        let _ = diesel::delete(users.filter(username.eq("username")))
+            .execute(CONFIG.db().unwrap().conn());
+        ()
+    }
+
+    fn save_test<T>(test: T) -> ()
+    where
+        T: FnOnce(NewUser) -> () + panic::UnwindSafe,
+    {
+        let new_user = save_setup();
+
+        match new_user {
+            Ok(new_user) => {
+                let _ = panic::catch_unwind(|| test(new_user));
+                ()
+            }
+            Err(_) => {
+                assert!(false, "Failed to create NewUser for save test");
+            }
+        };
+
+        save_teardown();
     }
 }
