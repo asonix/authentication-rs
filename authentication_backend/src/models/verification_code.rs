@@ -77,3 +77,60 @@ impl CreateVerificationCode {
         Ok(verification_code)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_by_id_makes_create_verification_code() {
+        let result = CreateVerificationCode::new_by_id(20);
+
+        assert!(result.is_ok(), "Failed to create verification code");
+    }
+
+    #[test]
+    fn save_saves_verification_code() {
+        use models::user::NewUser;
+        use schema::users;
+
+        let new_user = NewUser::new(&generate_username(), "P4ssw0rd$.").unwrap();
+
+        let user: User = diesel::insert(&new_user)
+            .into(users::table)
+            .get_result(CONFIG.db().unwrap().conn())
+            .unwrap();
+
+        let create_verification_code = CreateVerificationCode::new_by_id(user.id()).unwrap();
+
+        let result = create_verification_code.save();
+
+        assert!(result.is_ok(), "Failed to save verification_code");
+        teardown_by_user_id(user.id());
+    }
+
+    #[test]
+    fn save_fails_with_bad_user_id() {
+        let create_verification_code = CreateVerificationCode::new_by_id(-1).unwrap();
+
+        let result = create_verification_code.save();
+
+        assert!(
+            !result.is_ok(),
+            "Created verification_code with bad user_id"
+        );
+    }
+
+    fn generate_username() -> String {
+        use rand::Rng;
+        use rand::OsRng;
+
+        OsRng::new().unwrap().gen_ascii_chars().take(10).collect()
+    }
+
+    fn teardown_by_user_id(u_id: i32) -> () {
+        use schema::users::dsl::*;
+
+        let _ = diesel::delete(users.filter(id.eq(u_id))).execute(CONFIG.db().unwrap().conn());
+    }
+}

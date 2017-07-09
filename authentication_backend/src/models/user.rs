@@ -419,8 +419,8 @@ mod tests {
 
     #[test]
     fn delete_deletes_existing_user() {
-        user_test(|_| {
-            let result = User::delete("username", test_password_one());
+        user_test(|user| {
+            let result = User::delete(user.username(), test_password_one());
 
             assert!(result.is_ok(), "Failed to delete existing user");
         });
@@ -438,7 +438,7 @@ mod tests {
 
             assert!(vc.is_ok(), "Could not get verification_code for user");
 
-            let _ = User::delete("username", test_password_one());
+            let _ = User::delete(user.username(), test_password_one());
 
             let vc = verification_codes.filter(user_id.eq(user.id)).execute(
                 CONFIG
@@ -484,7 +484,7 @@ mod tests {
 
     #[test]
     fn new_creates_new_user() {
-        let new_user: Result<NewUser> = NewUser::new("username", test_password_one());
+        let new_user: Result<NewUser> = NewUser::new(&generate_username(), test_password_one());
 
         assert!(
             new_user.is_ok(),
@@ -501,14 +501,14 @@ mod tests {
 
     #[test]
     fn new_rejects_short_passwords() {
-        let new_user: Result<NewUser> = NewUser::new("username", "4sdf$.");
+        let new_user: Result<NewUser> = NewUser::new(&generate_username(), "4sdf$.");
 
         assert!(!new_user.is_ok(), "Short password still created NewUser");
     }
 
     #[test]
     fn new_rejects_weak_passwords() {
-        let new_user: Result<NewUser> = NewUser::new("username", "asdfasdfasdf");
+        let new_user: Result<NewUser> = NewUser::new(&generate_username(), "asdfasdfasdf");
 
         assert!(!new_user.is_ok(), "Weak password still created NewUser")
     }
@@ -567,10 +567,7 @@ mod tests {
     where
         T: FnOnce(NewUser) -> () + panic::UnwindSafe,
     {
-        use rand::Rng;
-        use rand::OsRng;
-
-        let uname: String = OsRng::new().unwrap().gen_ascii_chars().take(10).collect();
+        let uname = generate_username();
         let new_user = NewUser::new(&uname, test_password_one());
 
         match new_user {
@@ -585,5 +582,12 @@ mod tests {
         };
 
         teardown(&uname);
+    }
+
+    fn generate_username() -> String {
+        use rand::Rng;
+        use rand::OsRng;
+
+        OsRng::new().unwrap().gen_ascii_chars().take(10).collect()
     }
 }
