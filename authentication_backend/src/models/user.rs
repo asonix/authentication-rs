@@ -32,6 +32,13 @@ pub struct NewUser {
 }
 
 impl User {
+    pub fn create(auth: &Authenticatable) -> Result<Self> {
+        let new_user = NewUser::new(auth)?;
+        let user = new_user.save()?;
+
+        Ok(user)
+    }
+
     pub fn id(&self) -> i32 {
         self.id
     }
@@ -296,6 +303,19 @@ mod tests {
     use std::panic;
 
     // User tests
+
+    #[test]
+    fn create_creates_user() {
+        let auth = Authenticatable::UserAndPass {
+            username: &generate_username(),
+            password: &test_password_one(),
+        };
+
+        let result = User::create(&auth);
+
+        assert!(result.is_ok(), "Failed to create user");
+        teardown_by_id(result.unwrap().id());
+    }
 
     #[test]
     fn update_password_updates_password() {
