@@ -1,13 +1,11 @@
-use authentication_backend::models::user::{User, NewUser};
+use authentication_backend::models::user::User;
 use auth_result::AuthResult;
 use input_types::{ToAuth, Token, TokenWithPassword, CreateUser};
 use rocket_contrib::JSON;
 
 #[post("/sign-up", format = "application/json", data = "<create_user>")]
 pub fn sign_up(create_user: JSON<CreateUser>) -> AuthResult {
-    let new_user = NewUser::new(&create_user.0.to_auth())?;
-
-    let user = new_user.save()?;
+    let user = User::create(&create_user.0.to_auth())?;
 
     AuthResult::user_created(user)
 }
