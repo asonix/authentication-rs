@@ -1,7 +1,10 @@
 [package]
 name = "authentication"
+description = "A user authentication web service I'm writing to help me learn Rust"
+repository = "http://github.com/asonix/rust-web-testing"
 version = "0.1.0"
 authors = ["Riley Trautman <asonix.dev@gmail.com>"]
+license = "GPL-3.0"
 
 [dependencies]
 authentication_rocket = { path = "authentication_rocket" }
