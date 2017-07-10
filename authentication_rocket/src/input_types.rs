@@ -1,13 +1,13 @@
 use authentication_backend::models::user::Authenticatable;
 
+pub trait ToAuth {
+    fn to_auth(&self) -> Authenticatable;
+}
+
 #[derive(Deserialize)]
 pub struct CreateUser {
     pub username: String,
     pub password: String,
-}
-
-pub trait ToAuth {
-    fn to_auth(&self) -> Authenticatable;
 }
 
 impl ToAuth for CreateUser {
