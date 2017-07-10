@@ -7,6 +7,15 @@ use bcrypt::{DEFAULT_COST, hash, verify, BcryptResult};
 use error::{Error, Result};
 use diesel::prelude::*;
 
+pub enum Authenticatable<'a> {
+    UserAndPass {
+        username: &'a str,
+        password: &'a str,
+    },
+    Token { token: &'a str },
+    TokenAndPass { token: &'a str, password: &'a str },
+}
+
 #[derive(Queryable, Identifiable, AsChangeset, Associations)]
 pub struct User {
     id: i32,
@@ -130,7 +139,21 @@ impl User {
         Ok(token)
     }
 
-    pub fn from_webtoken(webtoken: &str) -> Result<Self> {
+    pub fn authenticate(auth: &Authenticatable) -> Result<Self> {
+        match *auth {
+            Authenticatable::UserAndPass {
+                username: u,
+                password: p,
+            } => User::from_username_and_password(u, p),
+            Authenticatable::Token { token: t } => User::from_webtoken(t),
+            Authenticatable::TokenAndPass {
+                token: t,
+                password: p,
+            } => User::from_webtoken_and_password(t, p),
+        }
+    }
+
+    fn from_webtoken(webtoken: &str) -> Result<Self> {
         use schema::users::dsl::*;
 
         let db = CONFIG.db()?;
@@ -145,7 +168,17 @@ impl User {
         Ok(user)
     }
 
-    pub fn authenticate(uname: &str, pword: &str) -> Result<Self> {
+    fn from_webtoken_and_password(webtoken: &str, password: &str) -> Result<Self> {
+        let user = User::from_webtoken(webtoken)?;
+
+        if user.verify_password(password)? {
+            Ok(user)
+        } else {
+            Err(Error::PasswordMatchError)
+        }
+    }
+
+    fn from_username_and_password(uname: &str, pword: &str) -> Result<Self> {
         use schema::users::dsl::*;
 
         let db = CONFIG.db()?;
@@ -159,27 +192,40 @@ impl User {
         }
     }
 
-    pub fn delete(uname: &str, pword: &str) -> Result<()> {
+    pub fn delete(auth: &Authenticatable) -> Result<()> {
         use schema::users::dsl::*;
+
+        let user = match *auth {
+            Authenticatable::TokenAndPass {
+                token: t,
+                password: p,
+            } => User::from_webtoken_and_password(t, p)?,
+            Authenticatable::UserAndPass {
+                username: u,
+                password: p,
+            } => User::from_username_and_password(u, p)?,
+            _ => return Err(Error::PermissionError),
+        };
 
         let db = CONFIG.db()?;
 
-        let user: User = users.filter(username.eq(uname)).first(db.conn())?;
+        diesel::delete(users.filter(username.eq(user.username)))
+            .execute(db.conn())?;
 
-        if user.verify_password(pword)? {
-            diesel::delete(users.filter(username.eq(uname))).execute(
-                db.conn(),
-            )?;
-
-            Ok(())
-        } else {
-            Err(Error::PasswordMatchError)
-        }
+        Ok(())
     }
 }
 
 impl NewUser {
-    pub fn new(username: &str, password: &str) -> Result<Self> {
+    pub fn new(auth: &Authenticatable) -> Result<Self> {
+        let (username, password) = match *auth {
+            Authenticatable::UserAndPass {
+                username: u,
+                password: p,
+            } => (u, p),
+            _ => return Err(Error::InvalidAuthError),
+        };
+
         let password = validate_password(password)?;
         let username = validate_username(username)?;
 
@@ -248,10 +294,6 @@ mod tests {
     use schema::users::dsl::*;
     use super::*;
     use std::panic;
-
-    fn test_password_one() -> &'static str {
-        "Passw0rd$."
-    }
 
     // User tests
 
@@ -392,7 +434,12 @@ mod tests {
     #[test]
     fn authenticate_fails_with_bad_username() {
         with_user(|_| {
-            let result = User::authenticate("not the username", test_password_one());
+            let auth = Authenticatable::UserAndPass {
+                username: "not the username",
+                password: test_password_one(),
+            };
+
+            let result = User::authenticate(&auth);
 
             assert!(!result.is_ok(), "User should not have been authenticated");
         });
@@ -401,7 +448,12 @@ mod tests {
     #[test]
     fn authenticate_fails_with_bad_password() {
         with_user(|user| {
-            let result = User::authenticate(&user.username(), "not the password");
+            let auth = Authenticatable::UserAndPass {
+                username: &user.username(),
+                password: "not the password",
+            };
+
+            let result = User::authenticate(&auth);
 
             assert!(!result.is_ok(), "User should not have been authenticated");
         });
@@ -410,7 +462,12 @@ mod tests {
     #[test]
     fn authenticate_authenticates_user() {
         with_user(|user| {
-            let result = User::authenticate(&user.username(), test_password_one());
+            let auth = Authenticatable::UserAndPass {
+                username: &user.username(),
+                password: test_password_one(),
+            };
+
+            let result = User::authenticate(&auth);
 
             assert!(result.is_ok(), "Failed to authenticate user");
         });
@@ -419,7 +476,12 @@ mod tests {
     #[test]
     fn delete_deletes_existing_user() {
         with_user(|user| {
-            let result = User::delete(user.username(), test_password_one());
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: test_password_one(),
+            };
+
+            let result = User::delete(&auth);
 
             assert!(result.is_ok(), "Failed to delete existing user");
         });
@@ -437,7 +499,12 @@ mod tests {
 
             assert!(vc.is_ok(), "Could not get verification_code for user");
 
-            let _ = User::delete(user.username(), test_password_one());
+            let auth = Authenticatable::UserAndPass {
+                username: &user.username(),
+                password: test_password_one(),
+            };
+
+            let _ = User::delete(&auth);
 
             let vc = verification_codes.filter(user_id.eq(user.id)).execute(
                 CONFIG
@@ -450,28 +517,11 @@ mod tests {
         });
     }
 
-    fn with_user<T>(test: T) -> ()
-    where
-        T: FnOnce(User) -> () + panic::UnwindSafe,
-    {
-        let uname = generate_username();
-        let new_user = NewUser::new(&uname, test_password_one()).expect(
-            "Failed to create NewUser for with_user",
-        );
-        let user = new_user.save().expect(
-            "Failed to create User for with_user",
-        );
-
-        let u_id = user.id();
-        let _ = panic::catch_unwind(|| test(user));
-        teardown_by_id(u_id);
-    }
-
     // NewUser tests
 
     #[test]
     fn new_creates_new_user() {
-        let new_user: Result<NewUser> = NewUser::new(&generate_username(), test_password_one());
+        let new_user: Result<NewUser> = generate_new_user();
 
         assert!(
             new_user.is_ok(),
@@ -481,37 +531,53 @@ mod tests {
 
     #[test]
     fn new_rejects_empty_usernames() {
-        let new_user: Result<NewUser> = NewUser::new("", test_password_one());
+        let auth = Authenticatable::UserAndPass {
+            username: "",
+            password: test_password_one(),
+        };
+
+        let new_user: Result<NewUser> = NewUser::new(&auth);
 
         assert!(!new_user.is_ok(), "Invalid username still created NewUser");
     }
 
     #[test]
     fn new_rejects_short_passwords() {
-        let new_user: Result<NewUser> = NewUser::new(&generate_username(), "4sdf$.");
+        let auth = Authenticatable::UserAndPass {
+            username: &generate_username(),
+            password: "4sdf$.",
+        };
+
+        let new_user: Result<NewUser> = NewUser::new(&auth);
 
         assert!(!new_user.is_ok(), "Short password still created NewUser");
     }
 
     #[test]
     fn new_rejects_weak_passwords() {
-        let new_user: Result<NewUser> = NewUser::new(&generate_username(), "asdfasdfasdf");
+        let auth = Authenticatable::UserAndPass {
+            username: &generate_username(),
+            password: "asdfasdfasdf",
+        };
+
+        let new_user: Result<NewUser> = NewUser::new(&auth);
 
         assert!(!new_user.is_ok(), "Weak password still created NewUser")
     }
 
     #[test]
     fn save_creates_user() {
-        save_test(|new_user| {
+        with_new_user(|new_user| {
             let user: Result<User> = new_user.save();
 
             assert!(user.is_ok(), "Failed to save NewUser");
+            teardown_by_id(user.unwrap().id());
         });
     }
 
     #[test]
     fn save_creates_verification_code() {
-        save_test(|new_user| {
+        with_new_user(|new_user| {
             let user: Result<User> = new_user.save();
 
             match user {
@@ -532,7 +598,7 @@ mod tests {
 
     #[test]
     fn cannot_save_multiple_identical_users() {
-        save_test(|new_user| {
+        with_new_user(|new_user| {
             let user: Result<User> = new_user.save();
             let user2: Result<User> = new_user.save();
 
@@ -545,36 +611,46 @@ mod tests {
         let _ = diesel::delete(users.filter(id.eq(u_id))).execute(CONFIG.db().unwrap().conn());
     }
 
-    fn teardown(uname: &str) -> () {
-        let _ =
-            diesel::delete(users.filter(username.eq(uname))).execute(CONFIG.db().unwrap().conn());
-    }
-
-    fn save_test<T>(test: T) -> ()
+    fn with_new_user<T>(test: T) -> ()
     where
         T: FnOnce(NewUser) -> () + panic::UnwindSafe,
     {
-        let uname = generate_username();
-        let new_user = NewUser::new(&uname, test_password_one());
-
-        match new_user {
-            Ok(new_user) => {
-                let _ = panic::catch_unwind(|| test(new_user));
-                ()
-            }
-            Err(_) => {
-                teardown(&uname);
-                assert!(false, "Failed to create NewUser for save test");
-            }
-        };
-
-        teardown(&uname);
+        let new_user = generate_new_user().expect("Failed to create NewUser for save test");
+        let _ = panic::catch_unwind(|| test(new_user));
     }
+
+    fn with_user<T>(test: T) -> ()
+    where
+        T: FnOnce(User) -> () + panic::UnwindSafe,
+    {
+        let new_user = generate_new_user().expect("Failed to create NewUser for with_user");
+        let user = new_user.save().expect(
+            "Failed to create User for with_user",
+        );
+
+        let u_id = user.id();
+        let _ = panic::catch_unwind(|| test(user));
+        teardown_by_id(u_id);
+    }
+
 
     fn generate_username() -> String {
         use rand::Rng;
         use rand::OsRng;
 
         OsRng::new().unwrap().gen_ascii_chars().take(10).collect()
+    }
+
+    fn test_password_one() -> &'static str {
+        "Passw0rd$."
+    }
+
+    fn generate_new_user() -> Result<NewUser> {
+        let auth = Authenticatable::UserAndPass {
+            username: &generate_username(),
+            password: test_password_one(),
+        };
+
+        NewUser::new(&auth)
     }
 }

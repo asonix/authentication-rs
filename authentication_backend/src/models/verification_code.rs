@@ -82,6 +82,7 @@ impl CreateVerificationCode {
 mod tests {
     use super::*;
     use std::panic;
+    use models::user::{NewUser, Authenticatable};
 
     #[test]
     fn new_by_username_creates_verification_code() {
@@ -114,10 +115,14 @@ mod tests {
 
     #[test]
     fn save_saves_verification_code() {
-        use models::user::NewUser;
         use schema::users;
 
-        let new_user = NewUser::new(&generate_username(), "P4ssw0rd$.").unwrap();
+        let auth = Authenticatable::UserAndPass {
+            username: &generate_username(),
+            password: "P4ssw0rd$.",
+        };
+
+        let new_user = NewUser::new(&auth).unwrap();
 
         let user: User = diesel::insert(&new_user)
             .into(users::table)
@@ -148,12 +153,7 @@ mod tests {
     where
         T: FnOnce(User) -> () + panic::UnwindSafe,
     {
-        use models::user::NewUser;
-
-        let uname: String = generate_username();
-        let new_user = NewUser::new(&uname, test_password_one()).expect(
-            "Failed to create NewUser for with_user",
-        );
+        let new_user = generate_new_user().expect("Failed to create NewUser for with_user");
         let user = new_user.save().expect("Failed to save User for with_user");
 
         let u_id = user.id();
@@ -170,6 +170,15 @@ mod tests {
 
     fn test_password_one() -> &'static str {
         "Passw0rd$."
+    }
+
+    fn generate_new_user() -> Result<NewUser> {
+        let auth = Authenticatable::UserAndPass {
+            username: &generate_username(),
+            password: test_password_one(),
+        };
+
+        NewUser::new(&auth)
     }
 
     fn teardown_by_user_id(u_id: i32) -> () {

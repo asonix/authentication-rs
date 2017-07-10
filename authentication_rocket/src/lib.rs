@@ -13,6 +13,7 @@ extern crate authentication_backend;
 mod routes;
 mod error;
 mod auth_result;
+mod input_types;
 
 pub fn launch() -> () {
     let error = rocket::ignite()
