@@ -48,5 +48,5 @@ pub mod config;
 pub mod webtoken;
 
 lazy_static! {
-    pub static ref CONFIG: Config<'static> = Config::initialize();
+    pub static ref CONFIG: Config = Config::initialize();
 }

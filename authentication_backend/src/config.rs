@@ -17,6 +17,8 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use std::fs::File;
+use std::io::Read;
 use std::env;
 use dotenv::dotenv;
 use webtoken::Claims;
@@ -26,7 +28,7 @@ use diesel::pg::PgConnection;
 use r2d2;
 use r2d2::{Pool, PooledConnection};
 use r2d2_diesel::ConnectionManager;
-use error::Result;
+use error::{Result, Error};
 use regex::Regex;
 
 type ManagedConnection = ConnectionManager<PgConnection>;
@@ -74,35 +76,63 @@ impl PasswordRegex {
     }
 }
 
-pub struct JWTSecret<'a> {
-    public_key: &'a [u8],
-    private_key: &'a [u8],
+pub struct JWTSecret {
+    public_key: Vec<u8>,
+    private_key: Vec<u8>,
 }
 
-impl<'a> JWTSecret<'a> {
+impl JWTSecret {
+    fn initialize() -> JWTSecret {
+        dotenv().ok();
+
+        JWTSecret {
+            private_key: JWTSecret::read_file(env!("JWT_PRIVATE_KEY")),
+            public_key: JWTSecret::read_file(env!("JWT_PUBLIC_KEY")),
+        }
+    }
+
+    fn read_file(filename: &str) -> Vec<u8> {
+        let mut f = File::open(filename).expect(&format!("File '{}' does not exist", filename));
+        let mut contents: Vec<u8> = Vec::new();
+
+        f.read_to_end(&mut contents).expect(&format!("Failed to read file '{}'", filename));
+
+        contents
+    }
+
     pub fn encode(&self, header: &Header, claims: &Claims) -> Result<String> {
-        let token = jwt::encode(header, claims, self.private_key)?;
+        // println!("Private Key Length: {}", self.private_key.len());
+
+        let token = jwt::encode(header, claims, &self.private_key)?;
 
         Ok(token)
     }
 
     pub fn decode(&self, token: &str, validation: &Validation) -> Result<Claims> {
-        let token_data = jwt::decode::<Claims>(token, self.public_key, validation)?;
+        // println!("Public Key Length: {}", self.public_key.len());
+
+        let token_data = match jwt::decode::<Claims>(token, &self.public_key, validation) {
+            Ok(token_data) => token_data,
+            Err(e) => {
+                // println!("Error: {}", &e.to_string());
+                return Err(Error::from(e));
+            },
+        };
 
         Ok(token_data.claims)
     }
 }
 
-pub struct Config<'a> {
-    jwt_secret: JWTSecret<'a>,
+pub struct Config {
+    jwt_secret: JWTSecret,
     db_pool: ConnectionPool,
     password_regex: PasswordRegex,
 }
 
-impl<'a> Config<'a> {
+impl Config {
     pub fn initialize() -> Self {
         Config {
-            jwt_secret: get_jwt_secret(),
+            jwt_secret: JWTSecret::initialize(),
             db_pool: create_db_pool(),
             password_regex: PasswordRegex::initialize(),
         }
@@ -137,11 +167,3 @@ fn create_db_pool() -> ConnectionPool {
     ))
 }
 
-fn get_jwt_secret<'a>() -> JWTSecret<'a> {
-    dotenv().ok();
-
-    JWTSecret {
-        private_key: include_bytes!(env!("JWT_PRIVATE_KEY")),
-        public_key: include_bytes!(env!("JWT_PUBLIC_KEY")),
-    }
-}

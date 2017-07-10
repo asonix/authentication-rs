@@ -79,6 +79,10 @@ mod tests {
         );
         let result = Claims::from_token(&token);
 
+        // if let &Err(ref e) = &result {
+        //     println!("Error: {}", e.to_string());
+        // }
+
         assert!(result.is_ok(), "Failed to get claims from token");
 
         let result = result.unwrap();
