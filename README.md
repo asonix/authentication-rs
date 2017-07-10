@@ -49,6 +49,38 @@ JWT_PRIVATE_KEY=/path/to/authentication/authentication_backend/keys/private.der
 JWT_PUBLIC_KEY=/path/to/authentication/authentication_backend/keys/public.der
 ```
 
+Install [`diesel_cli`](http://diesel.rs/guides/getting-started/) and make sure your global rust binaries are in your path.
+
+Installing:
+```bash
+$ cargo install diesel_cli
+```
+
+Setting path in `~/.bashrc` for bash:
+```bash
+# ~/.bashrc
+export PATH="$HOME/.cargo/bin:$PATH"
+```
+
+Setting path in `~/.zshenv` for zsh:
+```zsh
+# ~/.zshenv
+path=(~/.cargo/bin $path[@])
+```
+
+You may need to restart your shell for changes to take effect.
+
+```bash
+$ exec $SHELL
+```
+
+Run the existing migrations to bring your database up to speed.
+
+```bash
+$ cd authentication_backend
+$ diesel migration run
+```
+
 ### Running
 
 Compile the application with:
