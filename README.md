@@ -1,15 +1,15 @@
 # Authentication
 Authentication is a user-management web service created in Rust using [Rocket](https://rocket.rs) and [Diesel](https://diesel.rs/). Please tell me how to make it more idiomatic; I'm new to this.
 
-### Current abilities
+## Current abilities
  - `POST` to `/sign-up` with a `username` and `password` creates a `User` entry and a `VerificationCode` entry in the database and responds with a `token`.
  - `GET` to `/verify/<verification_code>` marks `User` as verified and deletes associated `VerificationCode`.
  - `POST` to `/is-authenticated` with `token` responds with whether the `token` is valid
  - `POST` to `/log-in` with a `username` and `password` responds with a `token`
  - `POST` to `/delete` with a `token` and `password` deletes a `User`
 
-### Contributing
-#### Setup
+## Contributing
+### Setup
 Acquire [`rustup`](https://www.rustup.rs/) and use the latest nightly:
 
 ```bash
@@ -49,7 +49,7 @@ JWT_PRIVATE_KEY=/path/to/authentication/authentication_backend/keys/private.der
 JWT_PUBLIC_KEY=/path/to/authentication/authentication_backend/keys/public.der
 ```
 
-#### Running
+### Running
 
 Compile the application with:
 
@@ -63,7 +63,7 @@ Run the application with
 $ cargo run
 ```
 
-#### Testing
+### Testing
 
 Test the application with
 
@@ -71,7 +71,7 @@ Test the application with
 $ cargo test
 ```
 
-### License
+## License
 
 Copyright © 2017 Riley Trautman
 
