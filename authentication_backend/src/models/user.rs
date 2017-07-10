@@ -412,22 +412,59 @@ mod tests {
     }
 
     #[test]
-    fn from_webtoken_gets_user_from_valid_webtoken() {
+    fn authenticate_gets_user_from_valid_webtoken() {
         with_user(|mut user| {
             user.verify(CONFIG.db().unwrap());
-            let token = user.create_webtoken().unwrap();
-            let result = User::from_webtoken(&token);
+            let auth = Authenticatable::Token { token: &user.create_webtoken().unwrap() };
+
+            let result = User::authenticate(&auth);
 
             assert!(result.is_ok(), "Failed to fetch user from webtoken");
         });
     }
 
     #[test]
-    fn from_webtoken_fails_with_bad_webtoken() {
+    fn authenticate_fails_with_bad_webtoken() {
         with_user(|_| {
-            let result = User::from_webtoken("this is not a token");
+            let auth = Authenticatable::Token { token: "this is not a token" };
+
+            let result = User::authenticate(&auth);
 
             assert!(!result.is_ok(), "Fetched user from fake webtoken");
+        });
+    }
+
+    #[test]
+    fn authenticate_with_token_and_password_works() {
+        with_user(|user| {
+            let auth = Authenticatable::TokenAndPass {
+                token: &user.create_webtoken().unwrap(),
+                password: &test_password_one(),
+            };
+
+            let result = User::authenticate(&auth);
+
+            assert!(
+                result.is_ok(),
+                "Failed to authenticate User with token and password"
+            );
+        });
+    }
+
+    #[test]
+    fn authenticate_fails_with_token_and_bad_password() {
+        with_user(|user| {
+            let auth = Authenticatable::TokenAndPass {
+                token: &user.create_webtoken().unwrap(),
+                password: "this is not the password",
+            };
+
+            let result = User::authenticate(&auth);
+
+            assert!(
+                !result.is_ok(),
+                "Authenticated User with token and bad password"
+            );
         });
     }
 
