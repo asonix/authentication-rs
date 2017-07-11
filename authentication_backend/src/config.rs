@@ -28,11 +28,34 @@ use diesel::pg::PgConnection;
 use r2d2;
 use r2d2::{Pool, PooledConnection};
 use r2d2_diesel::ConnectionManager;
-use error::{Result, Error};
+use error::Result;
 use regex::Regex;
 
 type ManagedConnection = ConnectionManager<PgConnection>;
-type ConnectionPool = Pool<ManagedConnection>;
+
+pub struct ConnectionPool(Pool<ManagedConnection>);
+
+impl ConnectionPool {
+    fn initialize() -> ConnectionPool {
+        dotenv().ok();
+
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
+        let kept_url = database_url.clone();
+
+        let config = r2d2::Config::default();
+        let manager = ConnectionManager::<PgConnection>::new(database_url);
+
+        ConnectionPool(Pool::new(config, manager).expect(&format!(
+            "Could not create connection pool for: {}",
+            kept_url
+        )))
+    }
+
+    fn get(&self) -> Result<PooledConnection<ManagedConnection>> {
+        Ok(self.0.get()?)
+    }
+}
 
 pub struct DB(PooledConnection<ManagedConnection>);
 
@@ -95,29 +118,22 @@ impl JWTSecret {
         let mut f = File::open(filename).expect(&format!("File '{}' does not exist", filename));
         let mut contents: Vec<u8> = Vec::new();
 
-        f.read_to_end(&mut contents).expect(&format!("Failed to read file '{}'", filename));
+        f.read_to_end(&mut contents).expect(&format!(
+            "Failed to read file '{}'",
+            filename
+        ));
 
         contents
     }
 
     pub fn encode(&self, header: &Header, claims: &Claims) -> Result<String> {
-        // println!("Private Key Length: {}", self.private_key.len());
-
         let token = jwt::encode(header, claims, &self.private_key)?;
 
         Ok(token)
     }
 
     pub fn decode(&self, token: &str, validation: &Validation) -> Result<Claims> {
-        // println!("Public Key Length: {}", self.public_key.len());
-
-        let token_data = match jwt::decode::<Claims>(token, &self.public_key, validation) {
-            Ok(token_data) => token_data,
-            Err(e) => {
-                // println!("Error: {}", &e.to_string());
-                return Err(Error::from(e));
-            },
-        };
+        let token_data = jwt::decode::<Claims>(token, &self.public_key, validation)?;
 
         Ok(token_data.claims)
     }
@@ -133,7 +149,7 @@ impl Config {
     pub fn initialize() -> Self {
         Config {
             jwt_secret: JWTSecret::initialize(),
-            db_pool: create_db_pool(),
+            db_pool: ConnectionPool::initialize(),
             password_regex: PasswordRegex::initialize(),
         }
     }
@@ -150,20 +166,3 @@ impl Config {
         &self.password_regex
     }
 }
-
-fn create_db_pool() -> ConnectionPool {
-    dotenv().ok();
-
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
-    let kept_url = database_url.clone();
-
-    let config = r2d2::Config::default();
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
-
-    Pool::new(config, manager).expect(&format!(
-        "Could not create connection pool for: {}",
-        kept_url
-    ))
-}
-
