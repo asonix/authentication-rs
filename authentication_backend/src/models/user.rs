@@ -53,9 +53,8 @@ pub struct NewUser {
 impl User {
     pub fn create(auth: &Authenticatable) -> Result<Self> {
         let new_user = NewUser::new(auth)?;
-        let user = new_user.save()?;
 
-        Ok(user)
+        new_user.save()
     }
 
     pub fn id(&self) -> i32 {

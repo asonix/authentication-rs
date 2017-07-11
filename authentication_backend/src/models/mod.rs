@@ -19,3 +19,5 @@
 
 pub mod user;
 pub mod verification_code;
+pub mod permission;
+pub mod user_permission;
