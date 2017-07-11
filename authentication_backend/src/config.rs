@@ -128,11 +128,14 @@ impl JWTSecret {
 
     pub fn encode(&self, header: &Header, claims: &Claims) -> Result<String> {
         let token = jwt::encode(header, claims, &self.private_key)?;
+        println!("Created token: '{}'", &token);
 
         Ok(token)
     }
 
     pub fn decode(&self, token: &str, validation: &Validation) -> Result<Claims> {
+        println!("Processing token: '{}'", &token);
+
         let token_data = jwt::decode::<Claims>(token, &self.public_key, validation)?;
 
         Ok(token_data.claims)

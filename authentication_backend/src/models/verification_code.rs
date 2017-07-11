@@ -176,8 +176,9 @@ mod tests {
         let user = new_user.save().expect("Failed to save User for with_user");
 
         let u_id = user.id();
-        let _ = panic::catch_unwind(|| test(user));
+        let result = panic::catch_unwind(|| test(user));
         teardown_by_user_id(u_id);
+        result.unwrap();
     }
 
     fn generate_username() -> String {

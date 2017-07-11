@@ -458,6 +458,9 @@ mod tests {
             let result = User::authenticate(&auth);
 
             assert!(result.is_ok(), "Failed to fetch user from webtoken");
+
+            let user_2 = result.unwrap();
+            assert_eq!(user.id, user_2.id, "Returned user differs from expected user");
         });
     }
 
@@ -691,7 +694,7 @@ mod tests {
         T: FnOnce(NewUser) -> () + panic::UnwindSafe,
     {
         let new_user = generate_new_user().expect("Failed to create NewUser for save test");
-        let _ = panic::catch_unwind(|| test(new_user));
+        panic::catch_unwind(|| test(new_user)).unwrap();
     }
 
     fn with_user<T>(test: T) -> ()
@@ -704,8 +707,9 @@ mod tests {
         );
 
         let u_id = user.id();
-        let _ = panic::catch_unwind(|| test(user));
+        let result = panic::catch_unwind(|| test(user));
         teardown_by_id(u_id);
+        result.unwrap();
     }
 
 

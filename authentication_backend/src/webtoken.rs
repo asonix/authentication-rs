@@ -19,17 +19,29 @@
 
 use CONFIG;
 use jwt::{Header, Algorithm, Validation};
+use chrono::{Utc, Duration};
 use error::Result;
 
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
+    iss: String,
+    sub: String,
+    iat: i64,
+    exp: i64,
     user_id: i32,
     username: String,
 }
 
 impl Claims {
     pub fn new(user_id: i32, username: &str) -> Self {
+        let issued_at = Utc::now();
+        let expiration = issued_at + Duration::weeks(2);
+
         Claims {
+            iss: "authentication".to_owned(),
+            sub: "user".to_owned(),
+            iat: issued_at.timestamp(),
+            exp: expiration.timestamp(),
             user_id: user_id,
             username: username.to_string(),
         }
@@ -51,7 +63,12 @@ impl Claims {
     }
 
     pub fn from_token(token: &str) -> Result<Self> {
-        let validation = Validation {leeway: 1000*30, algorithms: Some(vec![Algorithm::RS512]), ..Default::default()};
+        let validation = Validation {
+            leeway: 1000*30,
+            algorithms: Some(vec![Algorithm::RS512]),
+            iss: Some("authentication".to_owned()),
+            sub: Some("user".to_owned()),
+            ..Default::default()};
 
         CONFIG.jwt_secret().decode(token, &validation)
     }
@@ -91,7 +108,7 @@ mod tests {
         assert_eq!(
             result.username(),
             claims.username(),
-            "Token returns different user_id from start"
+            "Token returns different username from start"
         );
     }
 }
