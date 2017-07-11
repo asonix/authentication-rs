@@ -115,4 +115,25 @@ impl NewUserPermission {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super:*;
+    use std::panic;
+    use models::user::{NewUser, User, Authenticatable};
+    use models::permission::{NewPermission, Permission};
+
+    fn with_permission<T>(test: T) -> ()
+    where
+        T: FnOnce(Permission) -> () + panic::UnwindSafe
+    {
+        let new_permission = NewPermission::new(&generate_string());
+        let permission = new_permission.save().expect("Failed to save Permission");
+
+    }
+
+    fn generate_string() -> String {
+        use rand::Rng;
+        use rand::OsRng;
+
+        OsRng::new().unwrap().gen_ascii_chars().take(10).collect()
+    }
+}
