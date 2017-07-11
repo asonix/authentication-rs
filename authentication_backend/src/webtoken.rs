@@ -51,9 +51,9 @@ impl Claims {
     }
 
     pub fn from_token(token: &str) -> Result<Self> {
-        let validation = &Validation::default();
+        let validation = Validation {leeway: 1000*30, algorithms: Some(vec![Algorithm::RS512]), ..Default::default()};
 
-        CONFIG.jwt_secret().decode(token, validation)
+        CONFIG.jwt_secret().decode(token, &validation)
     }
 }
 
