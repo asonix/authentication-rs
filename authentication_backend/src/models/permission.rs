@@ -52,13 +52,13 @@ impl Permission {
 }
 
 impl NewPermission {
-    fn new(name: &str) -> Result<Self> {
+    pub fn new(name: &str) -> Result<Self> {
         let name = NewPermission::validate_name(name)?;
 
         Ok(NewPermission { name: name.to_string() })
     }
 
-    fn save(&self) -> Result<Permission> {
+    pub fn save(&self) -> Result<Permission> {
         let db = CONFIG.db()?;
 
         Ok(diesel::insert(self).into(permissions::table).get_result(

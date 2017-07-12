@@ -82,19 +82,17 @@ impl User {
             .filter(code.eq(vc))
             .first::<(VerificationCode, User)>(db.conn())?;
 
-        if !user.verify(db) {
+        if !user.verify(&db) {
             return Err(Error::UserNotVerifiedError);
         }
 
-        let db = CONFIG.db()?;
-
-        let _ = diesel::delete(verification_codes.filter(code.eq(vc)))
+        let _ = diesel::delete(verification_codes.filter(user_id.eq(user.id)))
             .execute(db.conn())?;
 
         Ok(user)
     }
 
-    fn verify(&mut self, db: DB) -> bool {
+    fn verify(&mut self, db: &DB) -> bool {
         use schema::users::dsl::*;
 
         let updated_record = diesel::update(users.filter(id.eq(self.id)))
@@ -415,12 +413,9 @@ mod tests {
 
             let user = User::verify_with_code(&vc.code()).unwrap();
 
-            let result = verification_codes.filter(user_id.eq(user.id)).execute(
-                CONFIG
-                    .db()
-                    .unwrap()
-                    .conn(),
-            );
+            let result = verification_codes
+                .filter(user_id.eq(user.id))
+                .first::<VerificationCode>(CONFIG.db().unwrap().conn());
             assert!(
                 !result.is_ok(),
                 "Verification code still exists after verify"
@@ -431,7 +426,7 @@ mod tests {
     #[test]
     fn verify_verifies_user() {
         with_user(|mut user| {
-            let result = user.verify(CONFIG.db().unwrap());
+            let result = user.verify(&CONFIG.db().unwrap());
 
             assert!(result, "Failed to verify user");
             assert!(user.verified, "User not verified");
@@ -441,7 +436,7 @@ mod tests {
     #[test]
     fn create_webtoken_creates_webtoken() {
         with_user(|mut user| {
-            user.verify(CONFIG.db().unwrap());
+            user.verify(&CONFIG.db().unwrap());
 
             let result = user.create_webtoken();
 
@@ -450,9 +445,18 @@ mod tests {
     }
 
     #[test]
+    fn unverified_users_cant_create_webtoken() {
+        with_user(|user| {
+            let result = user.create_webtoken();
+
+            assert!(!result.is_ok(), "Unverified User created webtoken");
+        });
+    }
+
+    #[test]
     fn authenticate_gets_user_from_valid_webtoken() {
         with_user(|mut user| {
-            user.verify(CONFIG.db().unwrap());
+            user.verify(&CONFIG.db().unwrap());
             let auth = Authenticatable::Token { token: &user.create_webtoken().unwrap() };
 
             let result = User::authenticate(&auth);
@@ -460,7 +464,11 @@ mod tests {
             assert!(result.is_ok(), "Failed to fetch user from webtoken");
 
             let user_2 = result.unwrap();
-            assert_eq!(user.id, user_2.id, "Returned user differs from expected user");
+            assert_eq!(
+                user.id,
+                user_2.id,
+                "Returned user differs from expected user"
+            );
         });
     }
 
@@ -477,7 +485,9 @@ mod tests {
 
     #[test]
     fn authenticate_with_token_and_password_works() {
-        with_user(|user| {
+        with_user(|mut user| {
+            assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
+
             let auth = Authenticatable::TokenAndPass {
                 token: &user.create_webtoken().unwrap(),
                 password: &test_password_one(),
@@ -494,7 +504,9 @@ mod tests {
 
     #[test]
     fn authenticate_fails_with_token_and_bad_password() {
-        with_user(|user| {
+        with_user(|mut user| {
+            assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
+
             let auth = Authenticatable::TokenAndPass {
                 token: &user.create_webtoken().unwrap(),
                 password: "this is not the password",
@@ -568,12 +580,9 @@ mod tests {
     #[test]
     fn delete_deletes_associated_verification_code() {
         with_user(|user| {
-            let vc = verification_codes.filter(user_id.eq(user.id)).execute(
-                CONFIG
-                    .db()
-                    .unwrap()
-                    .conn(),
-            );
+            let vc = verification_codes
+                .filter(user_id.eq(user.id))
+                .first::<VerificationCode>(CONFIG.db().unwrap().conn());
 
             assert!(vc.is_ok(), "Could not get verification_code for user");
 
@@ -584,12 +593,9 @@ mod tests {
 
             let _ = User::delete(&auth);
 
-            let vc = verification_codes.filter(user_id.eq(user.id)).execute(
-                CONFIG
-                    .db()
-                    .unwrap()
-                    .conn(),
-            );
+            let vc = verification_codes
+                .filter(user_id.eq(user.id))
+                .first::<VerificationCode>(CONFIG.db().unwrap().conn());
 
             assert!(!vc.is_ok(), "Verification code still exists after delete");
         });

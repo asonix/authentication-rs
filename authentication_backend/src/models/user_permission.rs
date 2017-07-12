@@ -116,18 +116,62 @@ impl NewUserPermission {
 
 #[cfg(test)]
 mod tests {
-    use super:*;
+    use super::*;
     use std::panic;
     use models::user::{NewUser, User, Authenticatable};
     use models::permission::{NewPermission, Permission};
 
+    #[test]
+    fn create_creates_user_permission() {
+        with_user(|user| {
+            with_permission(|permission| {
+                let result = UserPermission::create(&user, &permission);
+
+                assert!(result.is_ok(), "Failed to create UserPermission");
+            });
+        });
+    }
+
     fn with_permission<T>(test: T) -> ()
     where
-        T: FnOnce(Permission) -> () + panic::UnwindSafe
+        T: FnOnce(Permission) -> () + panic::UnwindSafe,
     {
-        let new_permission = NewPermission::new(&generate_string());
+        let new_permission =
+            NewPermission::new(&generate_string()).expect("Failed to create New Permission");
         let permission = new_permission.save().expect("Failed to save Permission");
 
+        let p_id = permission.id();
+        let result = panic::catch_unwind(|| test(permission));
+        permission_teardown(p_id);
+        result.unwrap();
+    }
+
+    fn with_user<T>(test: T) -> ()
+    where
+        T: FnOnce(User) -> () + panic::UnwindSafe,
+    {
+        let auth = Authenticatable::UserAndPass {
+            username: &generate_string(),
+            password: &test_password(),
+        };
+        let new_user = NewUser::new(&auth).expect("Failed to create New User");
+        let user = new_user.save().expect("Failed to save User");
+
+        let u_id = user.id();
+        let result = panic::catch_unwind(|| test(user));
+        user_teardown(u_id);
+        result.unwrap();
+    }
+
+    fn permission_teardown(p_id: i32) -> () {
+        use schema::permissions::dsl::*;
+        let _ =
+            diesel::delete(permissions.filter(id.eq(p_id))).execute(CONFIG.db().unwrap().conn());
+    }
+
+    fn user_teardown(u_id: i32) -> () {
+        use schema::users::dsl::*;
+        let _ = diesel::delete(users.filter(id.eq(u_id))).execute(CONFIG.db().unwrap().conn());
     }
 
     fn generate_string() -> String {
@@ -135,5 +179,9 @@ mod tests {
         use rand::OsRng;
 
         OsRng::new().unwrap().gen_ascii_chars().take(10).collect()
+    }
+
+    fn test_password() -> String {
+        "Passw0rd$.".to_string()
     }
 }
