@@ -49,6 +49,18 @@ impl Permission {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    pub fn find(permission: &str) -> Result<Self> {
+        use schema::permissions::dsl::*;
+
+        let db = CONFIG.db()?;
+
+        let permission = permissions
+            .filter(name.eq(permission))
+            .first::<Permission>(db.conn())?;
+
+        Ok(permission)
+    }
 }
 
 impl NewPermission {
@@ -79,6 +91,8 @@ impl NewPermission {
 mod tests {
     use super::*;
 
+    // Permission tests
+
     #[test]
     fn create_creates_permission() {
         let result = Permission::create(&generate_permission_name());
@@ -89,6 +103,22 @@ mod tests {
             teardown_by_id(permission.id);
         }
     }
+
+    #[test]
+    fn find_finds_admin_permission() {
+        let result = Permission::find("admin");
+
+        assert!(result.is_ok(), "admin permission not found");
+    }
+
+    #[test]
+    fn find_doesnt_find_fake_permission() {
+        let result = Permission::find("This is not a permission");
+
+        assert!(!result.is_ok(), "Fake permission found");
+    }
+
+    // NewPermission tests
 
     #[test]
     fn new_creates_new_permission() {

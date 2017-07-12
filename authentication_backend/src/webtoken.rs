@@ -64,11 +64,12 @@ impl Claims {
 
     pub fn from_token(token: &str) -> Result<Self> {
         let validation = Validation {
-            leeway: 1000*30,
+            leeway: 1000 * 30,
             algorithms: Some(vec![Algorithm::RS512]),
             iss: Some("authentication".to_owned()),
             sub: Some("user".to_owned()),
-            ..Default::default()};
+            ..Default::default()
+        };
 
         CONFIG.jwt_secret().decode(token, &validation)
     }
@@ -110,5 +111,12 @@ mod tests {
             claims.username(),
             "Token returns different username from start"
         );
+    }
+
+    #[test]
+    fn from_token_fails_with_fake_token() {
+        let result = Claims::from_token("This is not a webtoken");
+
+        assert!(!result.is_ok(), "Created claims from fake webtoken");
     }
 }

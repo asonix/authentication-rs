@@ -48,6 +48,25 @@ impl UserPermission {
         new_user_permission.save()
     }
 
+    pub fn has_permission(user: &User, permission: &Permission) -> bool {
+        use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
+
+        let db = match CONFIG.db() {
+            Ok(db) => db,
+            _ => return false,
+        };
+
+        let user_permission = user_permissions
+            .filter(user_id.eq(user.id()))
+            .filter(permission_id.eq(permission.id()))
+            .first::<UserPermission>(db.conn());
+
+        match user_permission {
+            Ok(_permission) => true,
+            _ => false,
+        }
+    }
+
     pub fn get_permissions(user: &User) -> Result<Vec<Permission>> {
         use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
         use schema::permissions::dsl::{id, permissions};
@@ -120,6 +139,30 @@ mod tests {
     use std::panic;
     use models::user::{NewUser, User, Authenticatable};
     use models::permission::{NewPermission, Permission};
+
+    #[test]
+    fn new_user_is_not_admin() {
+        with_user(|user| {
+            let admin = Permission::find("admin").unwrap();
+
+            let result = UserPermission::has_permission(&user, &admin);
+
+            assert!(!result, "New User is Admin");
+        });
+    }
+
+    #[test]
+    fn can_make_user_admin() {
+        with_user(|user| {
+            let admin = Permission::find("admin").unwrap();
+
+            let _ = UserPermission::create(&user, &admin).unwrap();
+
+            let result = UserPermission::has_permission(&user, &admin);
+
+            assert!(result, "User can become admin");
+        });
+    }
 
     #[test]
     fn get_permissions_gets_permissions() {
