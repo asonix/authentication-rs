@@ -17,41 +17,14 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#![feature(plugin, custom_derive, custom_attribute)]
-#![plugin(dotenv_macros)]
+use r2d2::PooledConnection;
+use diesel::pg::PgConnection;
+use config::ManagedConnection;
 
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate diesel_codegen;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate serde_derive;
+pub struct DB(pub PooledConnection<ManagedConnection>);
 
-extern crate serde;
-extern crate serde_json;
-extern crate rand;
-extern crate dotenv;
-extern crate jsonwebtoken as jwt;
-extern crate bcrypt;
-extern crate r2d2;
-extern crate r2d2_diesel;
-extern crate regex;
-extern crate chrono;
-
-use config::Config;
-
-pub mod schema;
-pub mod models;
-pub mod error;
-pub mod config;
-pub mod webtoken;
-pub mod authenticatable;
-
-#[cfg(test)]
-pub mod test_helper;
-
-lazy_static! {
-    pub static ref CONFIG: Config = Config::initialize();
+impl DB {
+    pub fn conn(&self) -> &PgConnection {
+        &*self.0
+    }
 }

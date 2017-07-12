@@ -18,50 +18,21 @@
  */
 
 use diesel;
-use schema::verification_codes;
-use models::user::User;
-use CONFIG;
-use error::Result;
 use diesel::prelude::*;
-
-#[derive(Queryable, Identifiable, Associations)]
-#[belongs_to(User)]
-pub struct VerificationCode {
-    id: i32,
-    code: String,
-    user_id: i32,
-}
+use error::Result;
+use CONFIG;
+use models::user::User;
+use super::VerificationCode;
+use schema::verification_codes;
 
 #[derive(Insertable)]
 #[table_name = "verification_codes"]
-pub struct CreateVerificationCode {
+pub struct NewVerificationCode {
     code: String,
     user_id: i32,
 }
 
-impl VerificationCode {
-    pub fn new_by_username(username: &str) -> Result<CreateVerificationCode> {
-        CreateVerificationCode::new_by_username(username)
-    }
-
-    pub fn new_by_id(user_id: i32) -> Result<CreateVerificationCode> {
-        CreateVerificationCode::new_by_id(user_id)
-    }
-
-    pub fn id(&self) -> i32 {
-        self.id
-    }
-
-    pub fn code(&self) -> &str {
-        &self.code
-    }
-
-    pub fn user_id(&self) -> i32 {
-        self.user_id
-    }
-}
-
-impl CreateVerificationCode {
+impl NewVerificationCode {
     pub fn new_by_username(uname: &str) -> Result<Self> {
         use schema::users::dsl::*;
 
@@ -78,7 +49,7 @@ impl CreateVerificationCode {
 
         let mut os_rng = OsRng::new()?;
 
-        Ok(CreateVerificationCode {
+        Ok(NewVerificationCode {
             code: os_rng.gen_ascii_chars().take(30).collect(),
             user_id: user_id,
         })
@@ -101,12 +72,13 @@ impl CreateVerificationCode {
 mod tests {
     use super::*;
     use std::panic;
-    use models::user::{NewUser, Authenticatable};
+    use models::user::new_user::NewUser;
+    use authenticatable::Authenticatable;
 
     #[test]
     fn new_by_username_creates_verification_code() {
         with_user(|user| {
-            let result = CreateVerificationCode::new_by_username(&user.username());
+            let result = NewVerificationCode::new_by_username(&user.username());
 
             assert!(
                 result.is_ok(),
@@ -117,7 +89,7 @@ mod tests {
 
     #[test]
     fn new_by_username_fails_with_bad_username() {
-        let result = CreateVerificationCode::new_by_username("this username doesn't exist");
+        let result = NewVerificationCode::new_by_username("this username doesn't exist");
 
         assert!(
             !result.is_ok(),
@@ -126,8 +98,8 @@ mod tests {
     }
 
     #[test]
-    fn new_by_id_makes_create_verification_code() {
-        let result = CreateVerificationCode::new_by_id(20);
+    fn new_by_id_makes_new_verification_code() {
+        let result = NewVerificationCode::new_by_id(20);
 
         assert!(result.is_ok(), "Failed to create verification code");
     }
@@ -148,9 +120,9 @@ mod tests {
             .get_result(CONFIG.db().unwrap().conn())
             .unwrap();
 
-        let create_verification_code = CreateVerificationCode::new_by_id(user.id()).unwrap();
+        let new_verification_code = NewVerificationCode::new_by_id(user.id()).unwrap();
 
-        let result = create_verification_code.save();
+        let result = new_verification_code.save();
 
         assert!(result.is_ok(), "Failed to save verification_code");
         teardown_by_user_id(user.id());
@@ -158,9 +130,9 @@ mod tests {
 
     #[test]
     fn save_fails_with_bad_user_id() {
-        let create_verification_code = CreateVerificationCode::new_by_id(-1).unwrap();
+        let new_verification_code = NewVerificationCode::new_by_id(-1).unwrap();
 
-        let result = create_verification_code.save();
+        let result = new_verification_code.save();
 
         assert!(
             !result.is_ok(),
@@ -206,4 +178,5 @@ mod tests {
 
         let _ = diesel::delete(users.filter(id.eq(u_id))).execute(CONFIG.db().unwrap().conn());
     }
+
 }

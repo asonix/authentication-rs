@@ -19,48 +19,15 @@
 
 use diesel;
 use diesel::prelude::*;
-use schema::permissions;
-use error::{Result, Error};
 use CONFIG;
-
-#[derive(Debug, PartialEq, Queryable, Identifiable, AsChangeset, Associations)]
-pub struct Permission {
-    id: i32,
-    name: String,
-}
+use error::{Result, Error};
+use super::Permission;
+use schema::permissions;
 
 #[derive(Insertable)]
 #[table_name = "permissions"]
 pub struct NewPermission {
     name: String,
-}
-
-impl Permission {
-    pub fn create(name: &str) -> Result<Self> {
-        let new_permission = NewPermission::new(name)?;
-
-        new_permission.save()
-    }
-
-    pub fn id(&self) -> i32 {
-        self.id
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn find(permission: &str) -> Result<Self> {
-        use schema::permissions::dsl::*;
-
-        let db = CONFIG.db()?;
-
-        let permission = permissions
-            .filter(name.eq(permission))
-            .first::<Permission>(db.conn())?;
-
-        Ok(permission)
-    }
 }
 
 impl NewPermission {
@@ -90,39 +57,12 @@ impl NewPermission {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // Permission tests
-
-    #[test]
-    fn create_creates_permission() {
-        let result = Permission::create(&generate_permission_name());
-
-        assert!(result.is_ok(), "Failed to create permission");
-
-        if let Ok(permission) = result {
-            teardown_by_id(permission.id);
-        }
-    }
-
-    #[test]
-    fn find_finds_admin_permission() {
-        let result = Permission::find("admin");
-
-        assert!(result.is_ok(), "admin permission not found");
-    }
-
-    #[test]
-    fn find_doesnt_find_fake_permission() {
-        let result = Permission::find("This is not a permission");
-
-        assert!(!result.is_ok(), "Fake permission found");
-    }
-
-    // NewPermission tests
+    use models::permission::test_helper::teardown;
+    use test_helper::generate_string;
 
     #[test]
     fn new_creates_new_permission() {
-        let result = NewPermission::new(&generate_permission_name());
+        let result = NewPermission::new(&generate_string());
 
         assert!(result.is_ok(), "Failed to create new_permission");
     }
@@ -136,20 +76,20 @@ mod tests {
 
     #[test]
     fn save_saves_new_permission() {
-        let new_permission = NewPermission::new(&generate_permission_name()).unwrap();
+        let new_permission = NewPermission::new(&generate_string()).unwrap();
 
         let result = new_permission.save();
 
         assert!(result.is_ok(), "Failed to save new_permission");
 
         if let Ok(permission) = result {
-            teardown_by_id(permission.id);
+            teardown(permission.id);
         }
     }
 
     #[test]
     fn save_fails_with_duplicate_name() {
-        let new_permission = NewPermission::new(&generate_permission_name()).unwrap();
+        let new_permission = NewPermission::new(&generate_string()).unwrap();
 
         let permission_one = new_permission.save();
         let permission_two = new_permission.save();
@@ -158,21 +98,7 @@ mod tests {
         assert!(!permission_two.is_ok(), "Created duplicate permission");
 
         if let Ok(permission) = permission_one {
-            teardown_by_id(permission.id);
+            teardown(permission.id);
         }
-    }
-
-    fn teardown_by_id(p_id: i32) -> () {
-        use schema::permissions::dsl::*;
-
-        let _ =
-            diesel::delete(permissions.filter(id.eq(p_id))).execute(CONFIG.db().unwrap().conn());
-    }
-
-    fn generate_permission_name() -> String {
-        use rand::Rng;
-        use rand::OsRng;
-
-        OsRng::new().unwrap().gen_ascii_chars().take(10).collect()
     }
 }

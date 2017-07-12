@@ -17,41 +17,13 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#![feature(plugin, custom_derive, custom_attribute)]
-#![plugin(dotenv_macros)]
+pub fn generate_string() -> String {
+    use rand::Rng;
+    use rand::OsRng;
 
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate diesel_codegen;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate serde_derive;
+    OsRng::new().unwrap().gen_ascii_chars().take(10).collect()
+}
 
-extern crate serde;
-extern crate serde_json;
-extern crate rand;
-extern crate dotenv;
-extern crate jsonwebtoken as jwt;
-extern crate bcrypt;
-extern crate r2d2;
-extern crate r2d2_diesel;
-extern crate regex;
-extern crate chrono;
-
-use config::Config;
-
-pub mod schema;
-pub mod models;
-pub mod error;
-pub mod config;
-pub mod webtoken;
-pub mod authenticatable;
-
-#[cfg(test)]
-pub mod test_helper;
-
-lazy_static! {
-    pub static ref CONFIG: Config = Config::initialize();
+pub fn test_password() -> &'static str {
+    "Passw0rd$."
 }

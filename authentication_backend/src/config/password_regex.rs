@@ -17,41 +17,38 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#![feature(plugin, custom_derive, custom_attribute)]
-#![plugin(dotenv_macros)]
+use regex::Regex;
 
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate diesel_codegen;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate serde_derive;
+pub struct PasswordRegex {
+    numbers: Regex,
+    symbols: Regex,
+    upper: Regex,
+    lower: Regex,
+}
 
-extern crate serde;
-extern crate serde_json;
-extern crate rand;
-extern crate dotenv;
-extern crate jsonwebtoken as jwt;
-extern crate bcrypt;
-extern crate r2d2;
-extern crate r2d2_diesel;
-extern crate regex;
-extern crate chrono;
+impl PasswordRegex {
+    pub fn initialize() -> Self {
+        PasswordRegex {
+            numbers: Regex::new("[0-9]").unwrap(),
+            symbols: Regex::new("[!@#$%^&*();\\\\/|<>\"'_+\\-\\.,?=]").unwrap(),
+            upper: Regex::new("[A-Z]").unwrap(),
+            lower: Regex::new("[a-z]").unwrap(),
+        }
+    }
 
-use config::Config;
+    pub fn numbers(&self) -> &Regex {
+        &self.numbers
+    }
 
-pub mod schema;
-pub mod models;
-pub mod error;
-pub mod config;
-pub mod webtoken;
-pub mod authenticatable;
+    pub fn symbols(&self) -> &Regex {
+        &self.symbols
+    }
 
-#[cfg(test)]
-pub mod test_helper;
+    pub fn upper(&self) -> &Regex {
+        &self.upper
+    }
 
-lazy_static! {
-    pub static ref CONFIG: Config = Config::initialize();
+    pub fn lower(&self) -> &Regex {
+        &self.lower
+    }
 }

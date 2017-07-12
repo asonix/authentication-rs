@@ -17,41 +17,15 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#![feature(plugin, custom_derive, custom_attribute)]
-#![plugin(dotenv_macros)]
+pub enum Authenticatable<'a> {
+    UserAndPass {
+        username: &'a str,
+        password: &'a str,
+    },
+    Token { token: &'a str },
+    TokenAndPass { token: &'a str, password: &'a str },
+}
 
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate diesel_codegen;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate serde_derive;
-
-extern crate serde;
-extern crate serde_json;
-extern crate rand;
-extern crate dotenv;
-extern crate jsonwebtoken as jwt;
-extern crate bcrypt;
-extern crate r2d2;
-extern crate r2d2_diesel;
-extern crate regex;
-extern crate chrono;
-
-use config::Config;
-
-pub mod schema;
-pub mod models;
-pub mod error;
-pub mod config;
-pub mod webtoken;
-pub mod authenticatable;
-
-#[cfg(test)]
-pub mod test_helper;
-
-lazy_static! {
-    pub static ref CONFIG: Config = Config::initialize();
+pub trait ToAuth {
+    fn to_auth(&self) -> Authenticatable;
 }

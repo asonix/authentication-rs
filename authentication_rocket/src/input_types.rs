@@ -17,11 +17,7 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use authentication_backend::models::user::Authenticatable;
-
-pub trait ToAuth {
-    fn to_auth(&self) -> Authenticatable;
-}
+use authentication_backend::authenticatable::{Authenticatable, ToAuth};
 
 #[derive(Deserialize)]
 pub struct CreateUser {

@@ -19,24 +19,24 @@
 
 use diesel;
 use diesel::prelude::*;
-use schema::user_permissions;
+use CONFIG;
 use error::Result;
+use schema::user_permissions;
 use models::user::User;
 use models::permission::Permission;
-use CONFIG;
+use self::new_user_permission::NewUserPermission;
+
+mod new_user_permission;
+
+#[cfg(test)]
+pub mod test_helper;
+
 
 #[derive(Debug, PartialEq, Queryable, Identifiable, Associations)]
 #[belongs_to(User)]
 #[belongs_to(Permission)]
 pub struct UserPermission {
     id: i32,
-    user_id: i32,
-    permission_id: i32,
-}
-
-#[derive(Insertable)]
-#[table_name = "user_permissions"]
-pub struct NewUserPermission {
     user_id: i32,
     permission_id: i32,
 }
@@ -116,29 +116,13 @@ impl UserPermission {
     }
 }
 
-impl NewUserPermission {
-    fn new(user: &User, permission: &Permission) -> Self {
-        NewUserPermission {
-            user_id: user.id(),
-            permission_id: permission.id(),
-        }
-    }
-
-    fn save(&self) -> Result<UserPermission> {
-        let db = CONFIG.db()?;
-
-        Ok(diesel::insert(self)
-            .into(user_permissions::table)
-            .get_result(db.conn())?)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::panic;
-    use models::user::{NewUser, User, Authenticatable};
-    use models::permission::{NewPermission, Permission};
+    use models::user::test_helper::with_user;
+    use models::permission::Permission;
+    use models::permission::test_helper::with_permission;
+    use models::user_permission::test_helper::with_user_permission;
 
     #[test]
     fn new_user_is_not_admin() {
@@ -203,94 +187,5 @@ mod tests {
                 assert!(result.is_ok(), "Failed to create UserPermission");
             });
         });
-    }
-
-    #[test]
-    fn save_saves_new_user_permission() {
-        with_user(|user| {
-            with_permission(|permission| {
-                let result = NewUserPermission::new(&user, &permission).save();
-
-                assert!(result.is_ok(), "Failed to save NewUserPermission");
-            });
-        });
-    }
-
-    fn with_user_permission<T>(test: T) -> ()
-    where
-        T: FnOnce(User, Permission, UserPermission) -> () + panic::UnwindSafe,
-    {
-        with_user(|user| {
-            with_permission(|permission| {
-                let user_permission = NewUserPermission::new(&user, &permission).save().expect(
-                    "Failed to save NewUserPermission",
-                );
-
-                let up_id = user_permission.id;
-                let result = panic::catch_unwind(|| test(user, permission, user_permission));
-                user_permission_teardown(up_id);
-                result.unwrap();
-            });
-        });
-    }
-
-    fn with_permission<T>(test: T) -> ()
-    where
-        T: FnOnce(Permission) -> () + panic::UnwindSafe,
-    {
-        let new_permission =
-            NewPermission::new(&generate_string()).expect("Failed to create New Permission");
-        let permission = new_permission.save().expect("Failed to save Permission");
-
-        let p_id = permission.id();
-        let result = panic::catch_unwind(|| test(permission));
-        permission_teardown(p_id);
-        result.unwrap();
-    }
-
-    fn with_user<T>(test: T) -> ()
-    where
-        T: FnOnce(User) -> () + panic::UnwindSafe,
-    {
-        let auth = Authenticatable::UserAndPass {
-            username: &generate_string(),
-            password: &test_password(),
-        };
-        let new_user = NewUser::new(&auth).expect("Failed to create New User");
-        let user = new_user.save().expect("Failed to save User");
-
-        let u_id = user.id();
-        let result = panic::catch_unwind(|| test(user));
-        user_teardown(u_id);
-        result.unwrap();
-    }
-
-    fn user_permission_teardown(up_id: i32) -> () {
-        use schema::user_permissions::dsl::*;
-
-        let _ = diesel::delete(user_permissions.filter(id.eq(up_id)))
-            .execute(CONFIG.db().unwrap().conn());
-    }
-
-    fn permission_teardown(p_id: i32) -> () {
-        use schema::permissions::dsl::*;
-        let _ =
-            diesel::delete(permissions.filter(id.eq(p_id))).execute(CONFIG.db().unwrap().conn());
-    }
-
-    fn user_teardown(u_id: i32) -> () {
-        use schema::users::dsl::*;
-        let _ = diesel::delete(users.filter(id.eq(u_id))).execute(CONFIG.db().unwrap().conn());
-    }
-
-    fn generate_string() -> String {
-        use rand::Rng;
-        use rand::OsRng;
-
-        OsRng::new().unwrap().gen_ascii_chars().take(10).collect()
-    }
-
-    fn test_password() -> String {
-        "Passw0rd$.".to_string()
     }
 }

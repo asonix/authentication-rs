@@ -19,21 +19,21 @@
 
 use diesel;
 use schema::users;
-use config::DB;
+use config::db::DB;
 use CONFIG;
+use authenticatable::Authenticatable;
 use webtoken::Claims;
 use bcrypt::{DEFAULT_COST, hash, verify, BcryptResult};
 use error::{Error, Result};
 use diesel::prelude::*;
+use self::new_user::NewUser;
+use self::helpers::{validate_username, validate_password};
 
-pub enum Authenticatable<'a> {
-    UserAndPass {
-        username: &'a str,
-        password: &'a str,
-    },
-    Token { token: &'a str },
-    TokenAndPass { token: &'a str, password: &'a str },
-}
+pub mod new_user;
+pub mod helpers;
+
+#[cfg(test)]
+pub mod test_helper;
 
 #[derive(Debug, PartialEq, Queryable, Identifiable, AsChangeset, Associations)]
 pub struct User {
@@ -41,13 +41,6 @@ pub struct User {
     username: String,
     password: String,
     verified: bool,
-}
-
-#[derive(Insertable)]
-#[table_name = "users"]
-pub struct NewUser {
-    username: String,
-    password: String,
 }
 
 impl User {
@@ -266,90 +259,17 @@ impl User {
     }
 }
 
-impl NewUser {
-    pub fn new(auth: &Authenticatable) -> Result<Self> {
-        let (username, password) = match *auth {
-            Authenticatable::UserAndPass {
-                username: u,
-                password: p,
-            } => (u, p),
-            _ => return Err(Error::InvalidAuthError),
-        };
-
-        let password = validate_password(password)?;
-        let username = validate_username(username)?;
-
-        let hash = hash(password, DEFAULT_COST)?;
-
-        Ok(NewUser {
-            username: username.to_string(),
-            password: hash,
-        })
-    }
-
-    pub fn save(&self) -> Result<User> {
-        use schema::users;
-        use models::verification_code::CreateVerificationCode;
-
-        let db = CONFIG.db()?;
-
-        let user: User = diesel::insert(self).into(users::table).get_result(
-            db.conn(),
-        )?;
-
-        let verification_code = CreateVerificationCode::new_by_id(user.id)?;
-
-        let _ = verification_code.save()?;
-
-        Ok(user)
-    }
-}
-
-fn validate_password(password: &str) -> Result<&str> {
-    if password.len() < 8 {
-        return Err(Error::InvalidPasswordError);
-    }
-
-    if !CONFIG.password_regex().numbers().is_match(password) {
-        return Err(Error::InvalidPasswordError);
-    }
-
-    if !CONFIG.password_regex().symbols().is_match(password) {
-        return Err(Error::InvalidPasswordError);
-    }
-
-    if !CONFIG.password_regex().upper().is_match(password) {
-        return Err(Error::InvalidPasswordError);
-    }
-
-    if !CONFIG.password_regex().lower().is_match(password) {
-        return Err(Error::InvalidPasswordError);
-    }
-
-    Ok(password)
-}
-
-fn validate_username(username: &str) -> Result<&str> {
-    if username.len() < 1 {
-        return Err(Error::InvalidUsernameError);
-    }
-
-    Ok(username)
-}
-
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use test_helper::*;
+    use models::user;
     use models::verification_code::VerificationCode;
     use schema::verification_codes::dsl::{verification_codes, user_id};
-    use schema::users::dsl::*;
-    use super::*;
-    use std::panic;
-
-    // User tests
 
     #[test]
     fn has_permission_verifies_new_user_is_not_admin() {
-        with_user(|user| {
+        user::test_helper::with_user(|user| {
             assert!(!user.has_permission("admin"), "New user is admin");
         });
     }
@@ -359,7 +279,7 @@ mod tests {
         use models::permission::Permission;
         use models::user_permission::UserPermission;
 
-        with_user(|admin| {
+        user::test_helper::with_user(|admin| {
             let admin_permission =
                 Permission::find("admin").expect("Failed to find admin permission");
 
@@ -372,7 +292,7 @@ mod tests {
                 "Failed to make test admin an admin"
             );
 
-            with_user(|user| {
+            user::test_helper::with_user(|user| {
                 let result = user.give_permission(&admin, "admin");
 
                 assert!(result.is_ok(), "Admin failed to give user new permission");
@@ -385,7 +305,7 @@ mod tests {
         use models::permission::Permission;
         use models::user_permission::UserPermission;
 
-        with_user(|admin| {
+        user::test_helper::with_user(|admin| {
             let admin_permission =
                 Permission::find("admin").expect("Failed to find admin permission");
 
@@ -398,7 +318,7 @@ mod tests {
                 "Failed to make test admin an admin"
             );
 
-            with_user(|user| {
+            user::test_helper::with_user(|user| {
                 let result = user.give_permission(&admin, "this is not a permission");
 
                 assert!(
@@ -412,20 +332,20 @@ mod tests {
     #[test]
     fn create_creates_user() {
         let auth = Authenticatable::UserAndPass {
-            username: &generate_username(),
-            password: &test_password_one(),
+            username: &generate_string(),
+            password: &test_password(),
         };
 
         let result = User::create(&auth);
 
         assert!(result.is_ok(), "Failed to create user");
-        teardown_by_id(result.unwrap().id());
+        user::test_helper::teardown(result.unwrap().id());
     }
 
     #[test]
     fn update_password_updates_password() {
-        with_user(|mut user| {
-            let result = user.update_password(test_password_one(), "P455w0rd$.");
+        user::test_helper::with_user(|mut user| {
+            let result = user.update_password(test_password(), "P455w0rd$.");
 
             assert!(result.is_ok(), "Failed to update password");
         });
@@ -433,8 +353,8 @@ mod tests {
 
     #[test]
     fn update_password_fails_with_bad_credentials() {
-        with_user(|mut user| {
-            let result = user.update_password("not the password", test_password_one());
+        user::test_helper::with_user(|mut user| {
+            let result = user.update_password("not the password", test_password());
 
             assert!(!result.is_ok(), "Updated password with bad credentials");
         });
@@ -442,8 +362,8 @@ mod tests {
 
     #[test]
     fn update_password_fails_with_weak_password() {
-        with_user(|mut user| {
-            let result = user.update_password(test_password_one(), "asdfasdfasdf");
+        user::test_helper::with_user(|mut user| {
+            let result = user.update_password(test_password(), "asdfasdfasdf");
 
             assert!(!result.is_ok(), "Allowed update to weak password");
         });
@@ -451,8 +371,8 @@ mod tests {
 
     #[test]
     fn update_username_updates_username() {
-        with_user(|mut user| {
-            let result = user.update_username("some_new_username", test_password_one());
+        user::test_helper::with_user(|mut user| {
+            let result = user.update_username("some_new_username", test_password());
 
             assert!(result.is_ok(), "Failed to update username");
         });
@@ -460,8 +380,8 @@ mod tests {
 
     #[test]
     fn update_username_fails_with_empty_username() {
-        with_user(|mut user| {
-            let result = user.update_username("", test_password_one());
+        user::test_helper::with_user(|mut user| {
+            let result = user.update_username("", test_password());
 
             assert!(!result.is_ok(), "Updated username to empty string");
         });
@@ -469,7 +389,7 @@ mod tests {
 
     #[test]
     fn update_username_fails_with_bad_password() {
-        with_user(|mut user| {
+        user::test_helper::with_user(|mut user| {
             let result = user.update_username("new_username", "not the password");
 
             assert!(!result.is_ok(), "Updated username with bad credentials");
@@ -478,7 +398,7 @@ mod tests {
 
     #[test]
     fn verify_with_code_verifies_user() {
-        with_user(|user| {
+        user::test_helper::with_user(|user| {
             let vc = verification_codes
                 .filter(user_id.eq(user.id))
                 .first::<VerificationCode>(CONFIG.db().unwrap().conn())
@@ -494,7 +414,7 @@ mod tests {
 
     #[test]
     fn verify_with_code_deletes_code() {
-        with_user(|user| {
+        user::test_helper::with_user(|user| {
             let vc = verification_codes
                 .filter(user_id.eq(user.id))
                 .first::<VerificationCode>(CONFIG.db().unwrap().conn())
@@ -514,7 +434,7 @@ mod tests {
 
     #[test]
     fn verify_verifies_user() {
-        with_user(|mut user| {
+        user::test_helper::with_user(|mut user| {
             let result = user.verify(&CONFIG.db().unwrap());
 
             assert!(result, "Failed to verify user");
@@ -524,7 +444,7 @@ mod tests {
 
     #[test]
     fn create_webtoken_creates_webtoken() {
-        with_user(|mut user| {
+        user::test_helper::with_user(|mut user| {
             user.verify(&CONFIG.db().unwrap());
 
             let result = user.create_webtoken();
@@ -535,7 +455,7 @@ mod tests {
 
     #[test]
     fn unverified_users_cant_create_webtoken() {
-        with_user(|user| {
+        user::test_helper::with_user(|user| {
             let result = user.create_webtoken();
 
             assert!(!result.is_ok(), "Unverified User created webtoken");
@@ -544,7 +464,7 @@ mod tests {
 
     #[test]
     fn authenticate_gets_user_from_valid_webtoken() {
-        with_user(|mut user| {
+        user::test_helper::with_user(|mut user| {
             user.verify(&CONFIG.db().unwrap());
             let auth = Authenticatable::Token { token: &user.create_webtoken().unwrap() };
 
@@ -563,7 +483,7 @@ mod tests {
 
     #[test]
     fn authenticate_fails_with_bad_webtoken() {
-        with_user(|_| {
+        user::test_helper::with_user(|_| {
             let auth = Authenticatable::Token { token: "this is not a token" };
 
             let result = User::authenticate(&auth);
@@ -574,12 +494,12 @@ mod tests {
 
     #[test]
     fn authenticate_with_token_and_password_works() {
-        with_user(|mut user| {
+        user::test_helper::with_user(|mut user| {
             assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
 
             let auth = Authenticatable::TokenAndPass {
                 token: &user.create_webtoken().unwrap(),
-                password: &test_password_one(),
+                password: &test_password(),
             };
 
             let result = User::authenticate(&auth);
@@ -593,7 +513,7 @@ mod tests {
 
     #[test]
     fn authenticate_fails_with_token_and_bad_password() {
-        with_user(|mut user| {
+        user::test_helper::with_user(|mut user| {
             assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
 
             let auth = Authenticatable::TokenAndPass {
@@ -612,10 +532,10 @@ mod tests {
 
     #[test]
     fn authenticate_fails_with_bad_username() {
-        with_user(|_| {
+        user::test_helper::with_user(|_| {
             let auth = Authenticatable::UserAndPass {
                 username: "not the username",
-                password: test_password_one(),
+                password: test_password(),
             };
 
             let result = User::authenticate(&auth);
@@ -626,7 +546,7 @@ mod tests {
 
     #[test]
     fn authenticate_fails_with_bad_password() {
-        with_user(|user| {
+        user::test_helper::with_user(|user| {
             let auth = Authenticatable::UserAndPass {
                 username: &user.username(),
                 password: "not the password",
@@ -640,10 +560,10 @@ mod tests {
 
     #[test]
     fn authenticate_authenticates_user() {
-        with_user(|user| {
+        user::test_helper::with_user(|user| {
             let auth = Authenticatable::UserAndPass {
                 username: &user.username(),
-                password: test_password_one(),
+                password: test_password(),
             };
 
             let result = User::authenticate(&auth);
@@ -654,10 +574,10 @@ mod tests {
 
     #[test]
     fn delete_deletes_existing_user() {
-        with_user(|user| {
+        user::test_helper::with_user(|user| {
             let auth = Authenticatable::UserAndPass {
                 username: user.username(),
-                password: test_password_one(),
+                password: test_password(),
             };
 
             let result = User::delete(&auth);
@@ -668,7 +588,7 @@ mod tests {
 
     #[test]
     fn delete_deletes_associated_verification_code() {
-        with_user(|user| {
+        user::test_helper::with_user(|user| {
             let vc = verification_codes
                 .filter(user_id.eq(user.id))
                 .first::<VerificationCode>(CONFIG.db().unwrap().conn());
@@ -677,7 +597,7 @@ mod tests {
 
             let auth = Authenticatable::UserAndPass {
                 username: &user.username(),
-                password: test_password_one(),
+                password: test_password(),
             };
 
             let _ = User::delete(&auth);
@@ -688,139 +608,5 @@ mod tests {
 
             assert!(!vc.is_ok(), "Verification code still exists after delete");
         });
-    }
-
-    // NewUser tests
-
-    #[test]
-    fn new_creates_new_user() {
-        let new_user: Result<NewUser> = generate_new_user();
-
-        assert!(
-            new_user.is_ok(),
-            "Valid username and password failed to create NewUser"
-        );
-    }
-
-    #[test]
-    fn new_rejects_empty_usernames() {
-        let auth = Authenticatable::UserAndPass {
-            username: "",
-            password: test_password_one(),
-        };
-
-        let new_user: Result<NewUser> = NewUser::new(&auth);
-
-        assert!(!new_user.is_ok(), "Invalid username still created NewUser");
-    }
-
-    #[test]
-    fn new_rejects_short_passwords() {
-        let auth = Authenticatable::UserAndPass {
-            username: &generate_username(),
-            password: "4sdf$.",
-        };
-
-        let new_user: Result<NewUser> = NewUser::new(&auth);
-
-        assert!(!new_user.is_ok(), "Short password still created NewUser");
-    }
-
-    #[test]
-    fn new_rejects_weak_passwords() {
-        let auth = Authenticatable::UserAndPass {
-            username: &generate_username(),
-            password: "asdfasdfasdf",
-        };
-
-        let new_user: Result<NewUser> = NewUser::new(&auth);
-
-        assert!(!new_user.is_ok(), "Weak password still created NewUser")
-    }
-
-    #[test]
-    fn save_creates_user() {
-        with_new_user(|new_user| {
-            let user: Result<User> = new_user.save();
-
-            assert!(user.is_ok(), "Failed to save NewUser");
-            teardown_by_id(user.unwrap().id());
-        });
-    }
-
-    #[test]
-    fn save_creates_verification_code() {
-        with_new_user(|new_user| {
-            let user = new_user.save().expect("Failed to save User");
-
-            let vc = verification_codes
-                .filter(user_id.eq(user.id))
-                .first::<VerificationCode>(CONFIG.db().unwrap().conn());
-
-            assert!(vc.is_ok(), "Failed to create Verification Code for User");
-
-            teardown_by_id(user.id);
-        });
-    }
-
-    #[test]
-    fn cannot_save_multiple_identical_users() {
-        with_new_user(|new_user| {
-            let user: Result<User> = new_user.save();
-            let user2: Result<User> = new_user.save();
-
-            assert!(user.is_ok(), "Failed to save user");
-            assert!(!user2.is_ok(), "Saved user with same username");
-
-            teardown_by_id(user.unwrap().id)
-        });
-    }
-
-    fn teardown_by_id(u_id: i32) -> () {
-        let _ = diesel::delete(users.filter(id.eq(u_id))).execute(CONFIG.db().unwrap().conn());
-    }
-
-    fn with_new_user<T>(test: T) -> ()
-    where
-        T: FnOnce(NewUser) -> () + panic::UnwindSafe,
-    {
-        let new_user = generate_new_user().expect("Failed to create NewUser for save test");
-        panic::catch_unwind(|| test(new_user)).unwrap();
-    }
-
-    fn with_user<T>(test: T) -> ()
-    where
-        T: FnOnce(User) -> () + panic::UnwindSafe,
-    {
-        let new_user = generate_new_user().expect("Failed to create NewUser for with_user");
-        let user = new_user.save().expect(
-            "Failed to create User for with_user",
-        );
-
-        let u_id = user.id();
-        let result = panic::catch_unwind(|| test(user));
-        teardown_by_id(u_id);
-        result.unwrap();
-    }
-
-
-    fn generate_username() -> String {
-        use rand::Rng;
-        use rand::OsRng;
-
-        OsRng::new().unwrap().gen_ascii_chars().take(10).collect()
-    }
-
-    fn test_password_one() -> &'static str {
-        "Passw0rd$."
-    }
-
-    fn generate_new_user() -> Result<NewUser> {
-        let auth = Authenticatable::UserAndPass {
-            username: &generate_username(),
-            password: test_password_one(),
-        };
-
-        NewUser::new(&auth)
     }
 }
