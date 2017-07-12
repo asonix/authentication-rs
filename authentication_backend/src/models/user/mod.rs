@@ -22,7 +22,7 @@ use schema::users;
 use config::db::DB;
 use CONFIG;
 use authenticatable::Authenticatable;
-use webtoken::Claims;
+use webtoken::Webtoken;
 use bcrypt::{DEFAULT_COST, hash, verify, BcryptResult};
 use error::{Error, Result};
 use diesel::prelude::*;
@@ -172,12 +172,12 @@ impl User {
         }
     }
 
-    pub fn create_webtoken(&self) -> Result<String> {
+    pub fn create_webtoken(&self) -> Result<Webtoken> {
         if !self.verified {
             return Err(Error::UserNotVerifiedError);
         }
 
-        let token = Claims::new(self.id, &self.username).to_token()?;
+        let token = Webtoken::create(self.id, &self.username)?;
 
         Ok(token)
     }
@@ -201,11 +201,11 @@ impl User {
 
         let db = CONFIG.db()?;
 
-        let claims = Claims::from_token(webtoken)?;
+        let (user_id, _) = Webtoken::from_user_token(webtoken)?;
 
         let user = users
             .filter(verified.eq(true))
-            .filter(id.eq(claims.user_id()))
+            .filter(id.eq(user_id))
             .first::<Self>(db.conn())?;
 
         Ok(user)

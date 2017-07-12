@@ -23,7 +23,7 @@ use dotenv::dotenv;
 use jwt;
 use jwt::{Header, Validation};
 use error::Result;
-use webtoken::Claims;
+use serde::{Serialize, Deserialize};
 
 pub struct JWTSecret {
     public_key: Vec<u8>,
@@ -52,14 +52,20 @@ impl JWTSecret {
         contents
     }
 
-    pub fn encode(&self, header: &Header, claims: &Claims) -> Result<String> {
+    pub fn encode<T>(&self, header: &Header, claims: &T) -> Result<String>
+    where
+        T: Serialize,
+    {
         let token = jwt::encode(header, claims, &self.private_key)?;
 
         Ok(token)
     }
 
-    pub fn decode(&self, token: &str, validation: &Validation) -> Result<Claims> {
-        let token_data = jwt::decode::<Claims>(token, &self.public_key, validation)?;
+    pub fn decode<T>(&self, token: &str, validation: &Validation) -> Result<T>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        let token_data = jwt::decode::<T>(token, &self.public_key, validation)?;
 
         Ok(token_data.claims)
     }

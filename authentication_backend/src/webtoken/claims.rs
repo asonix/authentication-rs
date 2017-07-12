@@ -17,9 +17,9 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use CONFIG;
-use jwt::{Header, Algorithm, Validation};
+use jwt::{Algorithm, Validation};
 use chrono::{Utc, Duration};
+use CONFIG;
 use error::Result;
 
 #[derive(Serialize, Deserialize)]
@@ -33,13 +33,13 @@ pub struct Claims {
 }
 
 impl Claims {
-    pub fn new(user_id: i32, username: &str) -> Self {
+    pub fn new(user_id: i32, username: &str, subject: &str, days: i64) -> Self {
         let issued_at = Utc::now();
-        let expiration = issued_at + Duration::weeks(2);
+        let expiration = issued_at + Duration::days(days);
 
         Claims {
             iss: "authentication".to_owned(),
-            sub: "user".to_owned(),
+            sub: subject.to_owned(),
             iat: issued_at.timestamp(),
             exp: expiration.timestamp(),
             user_id: user_id,
@@ -55,19 +55,24 @@ impl Claims {
         &self.username
     }
 
-    pub fn to_token(&self) -> Result<String> {
-        let mut header = Header::default();
-        header.alg = Algorithm::RS512;
-
-        CONFIG.jwt_secret().encode(&header, &self)
-    }
-
-    pub fn from_token(token: &str) -> Result<Self> {
+    pub fn from_user_token(token: &str) -> Result<Self> {
         let validation = Validation {
             leeway: 1000 * 30,
             algorithms: Some(vec![Algorithm::RS512]),
             iss: Some("authentication".to_owned()),
             sub: Some("user".to_owned()),
+            ..Default::default()
+        };
+
+        CONFIG.jwt_secret().decode(token, &validation)
+    }
+
+    pub fn from_renewal_token(token: &str) -> Result<Self> {
+        let validation = Validation {
+            leeway: 1000 * 30,
+            algorithms: Some(vec![Algorithm::RS512]),
+            iss: Some("authentication".to_owned()),
+            sub: Some("renewal".to_owned()),
             ..Default::default()
         };
 
@@ -81,7 +86,7 @@ mod tests {
 
     #[test]
     fn to_token_creates_token() {
-        let claims = Claims::new(1, "hello");
+        let claims = Claims::new(1, "hello", "user", 2);
 
         let result = claims.to_token();
 
@@ -89,13 +94,13 @@ mod tests {
     }
 
     #[test]
-    fn from_token_creates_claims() {
-        let claims = Claims::new(1, "hello");
+    fn from_user_token_creates_claims() {
+        let claims = Claims::new(1, "hello", "user", 2);
 
         let token = claims.to_token().expect(
             "Failed to create token from claims",
         );
-        let result = Claims::from_token(&token);
+        let result = Claims::from_user_token(&token);
 
         assert!(result.is_ok(), "Failed to get claims from token");
 
@@ -114,7 +119,7 @@ mod tests {
     }
 
     #[test]
-    fn from_token_fails_with_fake_token() {
+    fn from_user_token_fails_with_fake_token() {
         let result = Claims::from_token("This is not a webtoken");
 
         assert!(!result.is_ok(), "Created claims from fake webtoken");
