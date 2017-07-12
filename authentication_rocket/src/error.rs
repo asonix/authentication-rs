@@ -48,6 +48,7 @@ impl<'r> Responder<'r> for Error {
             error::Error::InvalidPasswordError => Status::BadRequest,
             error::Error::InvalidUsernameError => Status::BadRequest,
             error::Error::PasswordMatchError => Status::Unauthorized,
+            error::Error::InvalidPermissionNameError => Status::BadRequest,
             error::Error::PermissionError => Status::Unauthorized,
             error::Error::InvalidAuthError => Status::Unauthorized,
             error::Error::UserNotVerifiedError => Status::Unauthorized,
