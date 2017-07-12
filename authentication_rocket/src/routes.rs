@@ -18,8 +18,9 @@
  */
 
 use authentication_backend::models::user::User;
+use authentication_backend::authenticatable::ToAuth;
 use auth_result::AuthResult;
-use input_types::{ToAuth, Token, TokenWithPassword, CreateUser};
+use input_types::{Token, TokenWithPassword, CreateUser};
 use rocket_contrib::JSON;
 
 #[post("/sign-up", format = "application/json", data = "<create_user>")]
