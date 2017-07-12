@@ -25,7 +25,7 @@ use models::user::User;
 use models::permission::Permission;
 use CONFIG;
 
-#[derive(Queryable, Identifiable, Associations)]
+#[derive(Debug, PartialEq, Queryable, Identifiable, Associations)]
 #[belongs_to(User)]
 #[belongs_to(Permission)]
 pub struct UserPermission {
@@ -122,12 +122,71 @@ mod tests {
     use models::permission::{NewPermission, Permission};
 
     #[test]
+    fn get_permissions_gets_permissions() {
+        with_user_permission(|user, permission, _user_permission| {
+            let result = UserPermission::get_permissions(&user);
+
+            assert!(result.is_ok(), "Failed to get Permissions for User");
+
+            let permissions = result.unwrap();
+
+            assert_eq!(
+                permissions,
+                vec![permission],
+                "Retrieved permissions not accurate"
+            );
+        });
+    }
+
+    #[test]
+    fn get_users_gets_users() {
+        with_user_permission(|user, permission, _user_permission| {
+            let result = UserPermission::get_users(&permission);
+
+            assert!(result.is_ok(), "Failed to get Users with Permission");
+
+            let users = result.unwrap();
+
+            assert_eq!(users, vec![user], "Retrieved users not accurate");
+        });
+    }
+
+    #[test]
     fn create_creates_user_permission() {
         with_user(|user| {
             with_permission(|permission| {
                 let result = UserPermission::create(&user, &permission);
 
                 assert!(result.is_ok(), "Failed to create UserPermission");
+            });
+        });
+    }
+
+    #[test]
+    fn save_saves_new_user_permission() {
+        with_user(|user| {
+            with_permission(|permission| {
+                let result = NewUserPermission::new(&user, &permission).save();
+
+                assert!(result.is_ok(), "Failed to save NewUserPermission");
+            });
+        });
+    }
+
+    fn with_user_permission<T>(test: T) -> ()
+    where
+        T: FnOnce(User, Permission, UserPermission) -> () + panic::UnwindSafe,
+    {
+        with_user(|user| {
+            with_permission(|permission| {
+                let user_permission = NewUserPermission::new(&user, &permission).save().expect(
+                    "Failed to save NewUserPermission",
+                );
+
+                let up_id = user_permission.id;
+                let result = panic::catch_unwind(|| test(user, permission, user_permission));
+                user_permission_teardown(up_id);
+                result.unwrap();
             });
         });
     }
@@ -161,6 +220,13 @@ mod tests {
         let result = panic::catch_unwind(|| test(user));
         user_teardown(u_id);
         result.unwrap();
+    }
+
+    fn user_permission_teardown(up_id: i32) -> () {
+        use schema::user_permissions::dsl::*;
+
+        let _ = diesel::delete(user_permissions.filter(id.eq(up_id)))
+            .execute(CONFIG.db().unwrap().conn());
     }
 
     fn permission_teardown(p_id: i32) -> () {

@@ -35,7 +35,7 @@ pub enum Authenticatable<'a> {
     TokenAndPass { token: &'a str, password: &'a str },
 }
 
-#[derive(Queryable, Identifiable, AsChangeset, Associations)]
+#[derive(Debug, PartialEq, Queryable, Identifiable, AsChangeset, Associations)]
 pub struct User {
     id: i32,
     username: String,

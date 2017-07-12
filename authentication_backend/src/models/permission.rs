@@ -23,7 +23,7 @@ use schema::permissions;
 use error::{Result, Error};
 use CONFIG;
 
-#[derive(Queryable, Identifiable, AsChangeset, Associations)]
+#[derive(Debug, PartialEq, Queryable, Identifiable, AsChangeset, Associations)]
 pub struct Permission {
     id: i32,
     name: String,
