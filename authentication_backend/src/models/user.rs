@@ -662,21 +662,15 @@ mod tests {
     #[test]
     fn save_creates_verification_code() {
         with_new_user(|new_user| {
-            let user: Result<User> = new_user.save();
+            let user = new_user.save().expect("Failed to save User");
 
-            match user {
-                Ok(user) => {
-                    let vc = verification_codes.filter(user_id.eq(user.id)).execute(
-                        CONFIG
-                            .db()
-                            .unwrap()
-                            .conn(),
-                    );
+            let vc = verification_codes
+                .filter(user_id.eq(user.id))
+                .first::<VerificationCode>(CONFIG.db().unwrap().conn());
 
-                    assert!(vc.is_ok(), "Failed to create Verification Code for User");
-                }
-                _ => assert!(false, "Failed to save User"),
-            };
+            assert!(vc.is_ok(), "Failed to create Verification Code for User");
+
+            teardown_by_id(user.id);
         });
     }
 
@@ -688,6 +682,8 @@ mod tests {
 
             assert!(user.is_ok(), "Failed to save user");
             assert!(!user2.is_ok(), "Saved user with same username");
+
+            teardown_by_id(user.unwrap().id)
         });
     }
 
