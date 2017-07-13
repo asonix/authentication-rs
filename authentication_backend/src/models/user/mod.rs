@@ -466,7 +466,8 @@ mod tests {
     fn authenticate_gets_user_from_valid_webtoken() {
         user::test_helper::with_user(|mut user| {
             user.verify(&CONFIG.db().unwrap());
-            let auth = Authenticatable::Token { token: &user.create_webtoken().unwrap() };
+            let webtoken = user.create_webtoken().unwrap();
+            let auth = Authenticatable::Token { token: webtoken.user_token() };
 
             let result = User::authenticate(&auth);
 
@@ -497,8 +498,10 @@ mod tests {
         user::test_helper::with_user(|mut user| {
             assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
 
+            let webtoken = user.create_webtoken().unwrap();
+
             let auth = Authenticatable::TokenAndPass {
-                token: &user.create_webtoken().unwrap(),
+                token: webtoken.user_token(),
                 password: &test_password(),
             };
 
@@ -516,8 +519,10 @@ mod tests {
         user::test_helper::with_user(|mut user| {
             assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
 
+            let webtoken = user.create_webtoken().unwrap();
+
             let auth = Authenticatable::TokenAndPass {
-                token: &user.create_webtoken().unwrap(),
+                token: webtoken.user_token(),
                 password: "this is not the password",
             };
 

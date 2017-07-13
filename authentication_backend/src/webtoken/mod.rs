@@ -58,3 +58,53 @@ impl Webtoken {
         &self.renewal_token
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_creates_webtoken() {
+        let result = Webtoken::create(1, "some name");
+
+        assert!(result.is_ok(), "Failed to create webtoken");
+    }
+
+    #[test]
+    fn full_user_token_cycle_works() {
+        let user_id = 1;
+        let username = "some name";
+        let webtoken = Webtoken::create(user_id, username).expect("Failed to create webtoken");
+
+        let result = Webtoken::from_user_token(webtoken.user_token());
+
+        assert!(result.is_ok(), "Failed to get claims from User Token");
+
+        let (result_id, result_name) = result.unwrap();
+
+        assert_eq!(user_id, result_id, "User from Token has bad ID");
+        assert_eq!(username, result_name, "User from Token has bad username");
+    }
+
+    #[test]
+    fn full_renewal_cycle_works() {
+        let user_id = 1;
+        let username = "some name";
+        let webtoken = Webtoken::create(user_id, username).expect("Failed to create webtoken");
+
+        let webtoken_2 = Webtoken::from_renewal_token(webtoken.renewal_token());
+
+        assert!(webtoken_2.is_ok(), "Failed to renew webtoken");
+
+        let webtoken_2 = webtoken_2.unwrap();
+
+        let result = Webtoken::from_user_token(webtoken_2.user_token());
+
+        assert!(result.is_ok(), "Failed to get claims from User Token");
+
+        let (result_id, result_name) = result.unwrap();
+
+        assert_eq!(user_id, result_id, "User from Token has bad ID");
+        assert_eq!(username, result_name, "User from Token has bad username");
+    }
+}

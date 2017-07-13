@@ -50,4 +50,13 @@ impl NewWebtoken {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn to_token_creates_webtoken() {
+        let result = NewWebtoken::new(1, "some user").to_token();
+
+        assert!(result.is_ok(), "Failed to create webtoken");
+    }
+}
