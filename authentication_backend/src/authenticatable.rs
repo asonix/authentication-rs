@@ -22,8 +22,11 @@ pub enum Authenticatable<'a> {
         username: &'a str,
         password: &'a str,
     },
-    Token { token: &'a str },
-    TokenAndPass { token: &'a str, password: &'a str },
+    UserToken { user_token: &'a str },
+    UserTokenAndPass {
+        user_token: &'a str,
+        password: &'a str,
+    },
 }
 
 pub trait ToAuth {

@@ -188,9 +188,9 @@ impl User {
                 username: u,
                 password: p,
             } => User::from_username_and_password(u, p),
-            Authenticatable::Token { token: t } => User::from_webtoken(t),
-            Authenticatable::TokenAndPass {
-                token: t,
+            Authenticatable::UserToken { user_token: t } => User::from_webtoken(t),
+            Authenticatable::UserTokenAndPass {
+                user_token: t,
                 password: p,
             } => User::from_webtoken_and_password(t, p),
         }
@@ -239,8 +239,8 @@ impl User {
         use schema::users::dsl::*;
 
         let user = match *auth {
-            Authenticatable::TokenAndPass {
-                token: t,
+            Authenticatable::UserTokenAndPass {
+                user_token: t,
                 password: p,
             } => User::from_webtoken_and_password(t, p)?,
             Authenticatable::UserAndPass {
@@ -467,7 +467,7 @@ mod tests {
         user::test_helper::with_user(|mut user| {
             user.verify(&CONFIG.db().unwrap());
             let webtoken = user.create_webtoken().unwrap();
-            let auth = Authenticatable::Token { token: webtoken.user_token() };
+            let auth = Authenticatable::UserToken { user_token: webtoken.user_token() };
 
             let result = User::authenticate(&auth);
 
@@ -485,7 +485,7 @@ mod tests {
     #[test]
     fn authenticate_fails_with_bad_webtoken() {
         user::test_helper::with_user(|_| {
-            let auth = Authenticatable::Token { token: "this is not a token" };
+            let auth = Authenticatable::UserToken { user_token: "this is not a token" };
 
             let result = User::authenticate(&auth);
 
@@ -500,8 +500,8 @@ mod tests {
 
             let webtoken = user.create_webtoken().unwrap();
 
-            let auth = Authenticatable::TokenAndPass {
-                token: webtoken.user_token(),
+            let auth = Authenticatable::UserTokenAndPass {
+                user_token: webtoken.user_token(),
                 password: &test_password(),
             };
 
@@ -521,8 +521,8 @@ mod tests {
 
             let webtoken = user.create_webtoken().unwrap();
 
-            let auth = Authenticatable::TokenAndPass {
-                token: webtoken.user_token(),
+            let auth = Authenticatable::UserTokenAndPass {
+                user_token: webtoken.user_token(),
                 password: "this is not the password",
             };
 
