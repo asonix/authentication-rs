@@ -19,21 +19,20 @@
 
 use authentication_backend::models::user::User;
 use authentication_backend::webtoken::Webtoken;
-use authentication_backend::authenticatable::ToAuth;
 use auth_result::{AuthResult, AuthResponse};
 use input_types::{UserToken, UserTokenWithPassword, CreateUser, RenewalToken};
 use rocket_contrib::JSON;
 
 #[post("/sign-up", format = "application/json", data = "<create_user>")]
 pub fn sign_up(create_user: JSON<CreateUser>) -> AuthResult {
-    let user = User::create(&create_user.0.to_auth())?;
+    let user = User::create(&create_user.0)?;
 
     AuthResponse::user_created(user).into()
 }
 
 #[post("/log-in", format = "application/json", data = "<create_user>")]
 pub fn log_in(create_user: JSON<CreateUser>) -> AuthResult {
-    let user = User::authenticate(&create_user.0.to_auth())?;
+    let user = User::authenticate(&create_user.0)?;
 
     let token = user.create_webtoken().ok();
 
@@ -49,7 +48,7 @@ pub fn renew(renewal_token: JSON<RenewalToken>) -> AuthResult {
 
 #[post("/is-authenticated", format = "application/json", data = "<token>")]
 pub fn is_authenticated(token: JSON<UserToken>) -> AuthResult {
-    User::authenticate(&token.0.to_auth())?;
+    User::authenticate(&token.0)?;
 
     AuthResponse::authenticated(None).into()
 }
@@ -65,7 +64,7 @@ pub fn verify(verification_token: String) -> AuthResult {
 
 #[post("/delete", format = "application/json", data = "<token_with_password>")]
 pub fn delete(token_with_password: JSON<UserTokenWithPassword>) -> AuthResult {
-    User::delete(&token_with_password.0.to_auth())?;
+    User::delete(&token_with_password.0)?;
 
     AuthResponse::deleted().into()
 }
