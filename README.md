@@ -2,11 +2,26 @@
 Authentication is a user-management web service created in Rust using [Rocket](https://rocket.rs) and [Diesel](https://diesel.rs/). Please tell me how to make it more idiomatic; I'm new to this.
 
 ## Current abilities
- - `POST` to `/sign-up` with a `username` and `password` creates a `User` entry and a `VerificationCode` entry in the database and responds with a `token`.
- - `GET` to `/verify/<verification_code>` marks `User` as verified and deletes associated `VerificationCode`.
- - `POST` to `/is-authenticated` with `token` responds with whether the `token` is valid
- - `POST` to `/log-in` with a `username` and `password` responds with a `token`
- - `POST` to `/delete` with a `token` and `password` deletes a `User`
+ - `POST /sign-up`
+        INPUT: `username` and `password`
+        Creates a `User` entry and a `VerificationCode` entry in the database.
+        OUTPUT: `user_id` and `username`
+ - `GET /verify/<verification_code>`
+        INPUT: verification_code
+        Marks `User` as verified and deletes associated `VerificationCode`.
+        OUTPUT: `user_token` and `renewal_token`
+ - `POST /log-in`
+        INPUT: `username` and `password`
+        OUTPUT: `user_token` and `renewal_token`
+ - `POST /is-authenticated`
+        INPUT: `user_token`
+        OUTPUT: Whether or not `user_token` is valid
+ - `POST /renew`
+        INPUT: `renewal_token`
+        OUTPUT: `user_token` and `renewal_token`
+ - `POST /delete`
+        INPUT: `user_token` and `password`
+        Deletes `User`.
 
 ## Contributing
 ### Setup
