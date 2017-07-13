@@ -2,6 +2,7 @@
 Authentication is a user-management web service created in Rust using [Rocket](https://rocket.rs) and [Diesel](https://diesel.rs/). Please tell me how to make it more idiomatic; I'm new to this.
 
 ## Current abilities
+This application accepts data as JSON. It can create, verify, authenticate, and delete users.
  - `POST /sign-up`
     - INPUT: `username` and `password`
     - Creates a `User` entry and a `VerificationCode` entry in the database.
