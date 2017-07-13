@@ -41,6 +41,7 @@ pub fn launch() -> () {
             routes![
                 routes::sign_up,
                 routes::log_in,
+                routes::renew,
                 routes::is_authenticated,
                 routes::verify,
                 routes::delete,

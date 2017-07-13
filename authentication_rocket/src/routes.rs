@@ -18,16 +18,17 @@
  */
 
 use authentication_backend::models::user::User;
+use authentication_backend::webtoken::Webtoken;
 use authentication_backend::authenticatable::ToAuth;
-use auth_result::AuthResult;
-use input_types::{Token, TokenWithPassword, CreateUser};
+use auth_result::{AuthResult, AuthResponse};
+use input_types::{UserToken, UserTokenWithPassword, CreateUser, RenewalToken};
 use rocket_contrib::JSON;
 
 #[post("/sign-up", format = "application/json", data = "<create_user>")]
 pub fn sign_up(create_user: JSON<CreateUser>) -> AuthResult {
     let user = User::create(&create_user.0.to_auth())?;
 
-    AuthResult::user_created(user)
+    AuthResponse::user_created(user).into()
 }
 
 #[post("/log-in", format = "application/json", data = "<create_user>")]
@@ -36,14 +37,21 @@ pub fn log_in(create_user: JSON<CreateUser>) -> AuthResult {
 
     let token = user.create_webtoken().ok();
 
-    AuthResult::authenticated(token)
+    AuthResponse::authenticated(token).into()
+}
+
+#[post("/renew", format = "application/json", data = "<renewal_token>")]
+pub fn renew(renewal_token: JSON<RenewalToken>) -> AuthResult {
+    let webtoken = Webtoken::renew(&renewal_token.0.renewal_token)?;
+
+    AuthResponse::renewed(webtoken).into()
 }
 
 #[post("/is-authenticated", format = "application/json", data = "<token>")]
-pub fn is_authenticated(token: JSON<Token>) -> AuthResult {
+pub fn is_authenticated(token: JSON<UserToken>) -> AuthResult {
     User::authenticate(&token.0.to_auth())?;
 
-    AuthResult::authenticated(None)
+    AuthResponse::authenticated(None).into()
 }
 
 #[get("/verify/<verification_token>")]
@@ -52,12 +60,12 @@ pub fn verify(verification_token: String) -> AuthResult {
 
     let token = user.create_webtoken()?;
 
-    AuthResult::user_verified(token)
+    AuthResponse::user_verified(token).into()
 }
 
 #[post("/delete", format = "application/json", data = "<token_with_password>")]
-pub fn delete(token_with_password: JSON<TokenWithPassword>) -> AuthResult {
+pub fn delete(token_with_password: JSON<UserTokenWithPassword>) -> AuthResult {
     User::delete(&token_with_password.0.to_auth())?;
 
-    AuthResult::deleted()
+    AuthResponse::deleted().into()
 }

@@ -21,8 +21,8 @@ use authentication_backend::authenticatable::{Authenticatable, ToAuth};
 
 #[derive(Deserialize)]
 pub struct CreateUser {
-    pub username: String,
-    pub password: String,
+    username: String,
+    password: String,
 }
 
 impl ToAuth for CreateUser {
@@ -35,26 +35,31 @@ impl ToAuth for CreateUser {
 }
 
 #[derive(Deserialize)]
-pub struct Token {
-    token: String,
+pub struct UserToken {
+    user_token: String,
 }
 
-impl ToAuth for Token {
+impl ToAuth for UserToken {
     fn to_auth(&self) -> Authenticatable {
-        Authenticatable::Token { token: &self.token }
+        Authenticatable::UserToken { user_token: &self.user_token }
     }
 }
 
 #[derive(Deserialize)]
-pub struct TokenWithPassword {
-    token: String,
+pub struct RenewalToken {
+    pub renewal_token: String,
+}
+
+#[derive(Deserialize)]
+pub struct UserTokenWithPassword {
+    user_token: String,
     password: String,
 }
 
-impl ToAuth for TokenWithPassword {
+impl ToAuth for UserTokenWithPassword {
     fn to_auth(&self) -> Authenticatable {
-        Authenticatable::TokenAndPass {
-            token: &self.token,
+        Authenticatable::UserTokenAndPass {
+            user_token: &self.user_token,
             password: &self.password,
         }
     }
