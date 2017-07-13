@@ -3,25 +3,25 @@ Authentication is a user-management web service created in Rust using [Rocket](h
 
 ## Current abilities
  - `POST /sign-up`
-        INPUT: `username` and `password`
-        Creates a `User` entry and a `VerificationCode` entry in the database.
-        OUTPUT: `user_id` and `username`
+    - INPUT: `username` and `password`
+    - Creates a `User` entry and a `VerificationCode` entry in the database.
+    - OUTPUT: `user_id` and `username`
  - `GET /verify/<verification_code>`
-        INPUT: verification_code
-        Marks `User` as verified and deletes associated `VerificationCode`.
-        OUTPUT: `user_token` and `renewal_token`
+    - INPUT: verification_code
+    - Marks `User` as verified and deletes associated `VerificationCode`.
+    - OUTPUT: `user_token` and `renewal_token`
  - `POST /log-in`
-        INPUT: `username` and `password`
-        OUTPUT: `user_token` and `renewal_token`
+    - INPUT: `username` and `password`
+    - OUTPUT: `user_token` and `renewal_token`
  - `POST /is-authenticated`
-        INPUT: `user_token`
-        OUTPUT: Whether or not `user_token` is valid
+    - INPUT: `user_token`
+    - OUTPUT: Whether or not `user_token` is valid
  - `POST /renew`
-        INPUT: `renewal_token`
-        OUTPUT: `user_token` and `renewal_token`
+    - INPUT: `renewal_token`
+    - OUTPUT: `user_token` and `renewal_token`
  - `POST /delete`
-        INPUT: `user_token` and `password`
-        Deletes `User`.
+    - INPUT: `user_token` and `password`
+    - Deletes `User`.
 
 ## Contributing
 ### Setup
