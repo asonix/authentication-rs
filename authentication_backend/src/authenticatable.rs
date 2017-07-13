@@ -32,3 +32,27 @@ pub enum Authenticatable<'a> {
 pub trait ToAuth {
     fn to_auth(&self) -> Authenticatable;
 }
+
+impl<'a> ToAuth for Authenticatable<'a> {
+    fn to_auth(&self) -> Authenticatable {
+        match *self {
+            Authenticatable::UserAndPass {
+                username: ref u,
+                password: ref p,
+            } => Authenticatable::UserAndPass {
+                username: u,
+                password: p,
+            },
+            Authenticatable::UserToken { user_token: ref u } => Authenticatable::UserToken {
+                user_token: u,
+            },
+            Authenticatable::UserTokenAndPass {
+                user_token: ref u,
+                password: ref p,
+            } => Authenticatable::UserTokenAndPass {
+                user_token: u,
+                password: p,
+            },
+        }
+    }
+}

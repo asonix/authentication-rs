@@ -21,7 +21,7 @@ use diesel;
 use schema::users;
 use config::db::DB;
 use CONFIG;
-use authenticatable::Authenticatable;
+use authenticatable::{Authenticatable, ToAuth};
 use webtoken::Webtoken;
 use bcrypt::{DEFAULT_COST, hash, verify, BcryptResult};
 use error::{Error, Result};
@@ -44,8 +44,11 @@ pub struct User {
 }
 
 impl User {
-    pub fn create(auth: &Authenticatable) -> Result<Self> {
-        let new_user = NewUser::new(auth)?;
+    pub fn create<T>(auth: &T) -> Result<Self>
+    where
+        T: ToAuth,
+    {
+        let new_user = NewUser::new(&auth.to_auth())?;
 
         new_user.save()
     }
@@ -182,8 +185,11 @@ impl User {
         Ok(token)
     }
 
-    pub fn authenticate(auth: &Authenticatable) -> Result<Self> {
-        match *auth {
+    pub fn authenticate<T>(auth: &T) -> Result<Self>
+    where
+        T: ToAuth,
+    {
+        match auth.to_auth() {
             Authenticatable::UserAndPass {
                 username: u,
                 password: p,
@@ -235,10 +241,13 @@ impl User {
         }
     }
 
-    pub fn delete(auth: &Authenticatable) -> Result<()> {
+    pub fn delete<T>(auth: &T) -> Result<()>
+    where
+        T: ToAuth,
+    {
         use schema::users::dsl::*;
 
-        let user = match *auth {
+        let user = match auth.to_auth() {
             Authenticatable::UserTokenAndPass {
                 user_token: t,
                 password: p,
