@@ -55,7 +55,7 @@ impl Claims {
         &self.username
     }
 
-    pub fn from_user_token(token: &str) -> Result<Self> {
+    pub fn authenticate(token: &str) -> Result<Self> {
         let validation = Validation {
             leeway: 1000 * 30,
             algorithms: Some(vec![Algorithm::RS512]),
@@ -67,7 +67,7 @@ impl Claims {
         CONFIG.jwt_secret().decode(token, &validation)
     }
 
-    pub fn from_renewal_token(token: &str) -> Result<Self> {
+    pub fn renew(token: &str) -> Result<Self> {
         let validation = Validation {
             leeway: 1000 * 30,
             algorithms: Some(vec![Algorithm::RS512]),
@@ -86,7 +86,7 @@ mod tests {
     use jwt::Header;
 
     #[test]
-    fn from_renewal_token_creates_claims() {
+    fn renew_creates_claims() {
         let claims = Claims::new(1, "hello", "renewal", 2);
 
         let mut header = Header::default();
@@ -95,7 +95,7 @@ mod tests {
         let token = CONFIG.jwt_secret().encode(&header, &claims).expect(
             "Failed to create token from claims",
         );
-        let result = Claims::from_renewal_token(&token);
+        let result = Claims::renew(&token);
 
         assert!(result.is_ok(), "Failed to get claims from token");
 
@@ -114,7 +114,7 @@ mod tests {
     }
 
     #[test]
-    fn from_user_token_creates_claims() {
+    fn authenticate_creates_claims() {
         let claims = Claims::new(1, "hello", "user", 2);
 
         let mut header = Header::default();
@@ -123,7 +123,7 @@ mod tests {
         let token = CONFIG.jwt_secret().encode(&header, &claims).expect(
             "Failed to create token from claims",
         );
-        let result = Claims::from_user_token(&token);
+        let result = Claims::authenticate(&token);
 
         assert!(result.is_ok(), "Failed to get claims from token");
 
@@ -142,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn from_renewal_token_fails_with_user_token() {
+    fn renew_fails_with_user_token() {
         let claims = Claims::new(1, "hello", "user", 2);
 
         let mut header = Header::default();
@@ -151,13 +151,13 @@ mod tests {
         let token = CONFIG.jwt_secret().encode(&header, &claims).expect(
             "Failed to create token from claims",
         );
-        let result = Claims::from_renewal_token(&token);
+        let result = Claims::renew(&token);
 
         assert!(!result.is_ok(), "Validated User token as Renewal token");
     }
 
     #[test]
-    fn from_user_token_fails_with_renewal_token() {
+    fn authenticate_fails_with_renewal_token() {
         let claims = Claims::new(1, "hello", "renewal", 2);
 
         let mut header = Header::default();
@@ -166,21 +166,21 @@ mod tests {
         let token = CONFIG.jwt_secret().encode(&header, &claims).expect(
             "Failed to create token from claims",
         );
-        let result = Claims::from_user_token(&token);
+        let result = Claims::authenticate(&token);
 
         assert!(!result.is_ok(), "Validated User token as Renewal token");
     }
 
     #[test]
-    fn from_user_token_fails_with_fake_token() {
-        let result = Claims::from_user_token("This is not a webtoken");
+    fn authenticate_fails_with_fake_token() {
+        let result = Claims::authenticate("This is not a webtoken");
 
         assert!(!result.is_ok(), "Created claims from fake webtoken");
     }
 
     #[test]
-    fn from_renewal_token_fails_with_fake_token() {
-        let result = Claims::from_renewal_token("This is not a webtoken");
+    fn renew_fails_with_fake_token() {
+        let result = Claims::renew("This is not a webtoken");
 
         assert!(!result.is_ok(), "Created claims from fake webtoken");
     }

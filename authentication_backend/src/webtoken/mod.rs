@@ -38,14 +38,14 @@ impl Webtoken {
         Ok(webtoken)
     }
 
-    pub fn from_user_token(token: &str) -> Result<(i32, String)> {
-        let claims = Claims::from_user_token(token)?;
+    pub fn authenticate(token: &str) -> Result<(i32, String)> {
+        let claims = Claims::authenticate(token)?;
 
         Ok((claims.user_id(), claims.username().to_owned()))
     }
 
-    pub fn from_renewal_token(token: &str) -> Result<Self> {
-        let claims = Claims::from_renewal_token(token)?;
+    pub fn renew(token: &str) -> Result<Self> {
+        let claims = Claims::renew(token)?;
 
         Webtoken::create(claims.user_id(), claims.username())
     }
@@ -71,12 +71,12 @@ mod tests {
     }
 
     #[test]
-    fn full_user_token_cycle_works() {
+    fn full_authentication_cycle_works() {
         let user_id = 1;
         let username = "some name";
         let webtoken = Webtoken::create(user_id, username).expect("Failed to create webtoken");
 
-        let result = Webtoken::from_user_token(webtoken.user_token());
+        let result = Webtoken::authenticate(webtoken.user_token());
 
         assert!(result.is_ok(), "Failed to get claims from User Token");
 
@@ -92,13 +92,13 @@ mod tests {
         let username = "some name";
         let webtoken = Webtoken::create(user_id, username).expect("Failed to create webtoken");
 
-        let webtoken_2 = Webtoken::from_renewal_token(webtoken.renewal_token());
+        let webtoken_2 = Webtoken::renew(webtoken.renewal_token());
 
         assert!(webtoken_2.is_ok(), "Failed to renew webtoken");
 
         let webtoken_2 = webtoken_2.unwrap();
 
-        let result = Webtoken::from_user_token(webtoken_2.user_token());
+        let result = Webtoken::authenticate(webtoken_2.user_token());
 
         assert!(result.is_ok(), "Failed to get claims from User Token");
 

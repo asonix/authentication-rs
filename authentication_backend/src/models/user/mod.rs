@@ -201,7 +201,7 @@ impl User {
 
         let db = CONFIG.db()?;
 
-        let (user_id, _) = Webtoken::from_user_token(webtoken)?;
+        let (user_id, _) = Webtoken::authenticate(webtoken)?;
 
         let user = users
             .filter(verified.eq(true))
