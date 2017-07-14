@@ -50,7 +50,7 @@ This binary accepts a **username** as a commandline argument and makes that user
 $ cargo run --bin verify_user <username>
 ```
 #### Information
-This binary accepts a **username** cas a commandline argument and verifies that user.
+This binary accepts a **username** as a commandline argument and verifies that user.
 
 ## Contributing
 ### Setup
