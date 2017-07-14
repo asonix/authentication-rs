@@ -17,6 +17,9 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use diesel;
+use diesel::prelude::*;
+use CONFIG;
 use schema::verification_codes;
 use models::user::User;
 use error::Result;
@@ -56,7 +59,30 @@ impl VerificationCode {
     pub fn user_id(&self) -> i32 {
         self.user_id
     }
+
+    pub fn delete_by_user_id(u_id: i32) -> Result<()> {
+        use schema::verification_codes::dsl::{verification_codes, user_id};
+
+        let db = CONFIG.db()?;
+
+        let _ = diesel::delete(verification_codes.filter(user_id.eq(u_id)))
+            .execute(db.conn())?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use models::user::test_helper::with_user;
+
+    #[test]
+    fn delete_by_user_id_deletes_verification_code() {
+        with_user(|user| {
+            let result = VerificationCode::delete_by_user_id(user.id());
+
+            assert!(result.is_ok(), "Failed to delete verification_code");
+        });
+    }
+}

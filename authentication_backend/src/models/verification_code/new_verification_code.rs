@@ -71,7 +71,8 @@ impl NewVerificationCode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::panic;
+    use test_helper::*;
+    use models::user::test_helper::{with_user, teardown};
     use models::user::new_user::NewUser;
     use authenticatable::Authenticatable;
 
@@ -109,7 +110,7 @@ mod tests {
         use schema::users;
 
         let auth = Authenticatable::UserAndPass {
-            username: &generate_username(),
+            username: &generate_string(),
             password: "P4ssw0rd$.",
         };
 
@@ -125,7 +126,7 @@ mod tests {
         let result = new_verification_code.save();
 
         assert!(result.is_ok(), "Failed to save verification_code");
-        teardown_by_user_id(user.id());
+        teardown(user.id());
     }
 
     #[test]
@@ -139,44 +140,4 @@ mod tests {
             "Created verification_code with bad user_id"
         );
     }
-
-    fn with_user<T>(test: T) -> ()
-    where
-        T: FnOnce(User) -> () + panic::UnwindSafe,
-    {
-        let new_user = generate_new_user().expect("Failed to create NewUser for with_user");
-        let user = new_user.save().expect("Failed to save User for with_user");
-
-        let u_id = user.id();
-        let result = panic::catch_unwind(|| test(user));
-        teardown_by_user_id(u_id);
-        result.unwrap();
-    }
-
-    fn generate_username() -> String {
-        use rand::Rng;
-        use rand::OsRng;
-
-        OsRng::new().unwrap().gen_ascii_chars().take(10).collect()
-    }
-
-    fn test_password_one() -> &'static str {
-        "Passw0rd$."
-    }
-
-    fn generate_new_user() -> Result<NewUser> {
-        let auth = Authenticatable::UserAndPass {
-            username: &generate_username(),
-            password: test_password_one(),
-        };
-
-        NewUser::new(&auth)
-    }
-
-    fn teardown_by_user_id(u_id: i32) -> () {
-        use schema::users::dsl::*;
-
-        let _ = diesel::delete(users.filter(id.eq(u_id))).execute(CONFIG.db().unwrap().conn());
-    }
-
 }

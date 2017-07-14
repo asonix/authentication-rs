@@ -127,8 +127,7 @@ impl User {
             return Err(Error::UserNotVerifiedError);
         }
 
-        let _ = diesel::delete(verification_codes.filter(user_id.eq(user.id)))
-            .execute(db.conn())?;
+        let _ = VerificationCode::delete_by_user_id(user.id)?;
 
         Ok(user)
     }
