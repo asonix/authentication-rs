@@ -24,6 +24,7 @@ use rocket::request::Request;
 use rocket::response::{self, Responder};
 use rocket_contrib::JSON;
 use authentication_backend::models::user::User;
+use authentication_backend::models::permission::Permission;
 use authentication_backend::webtoken;
 use error::Error;
 
@@ -35,7 +36,27 @@ pub enum ResponseBody {
         user_token: String,
         renewal_token: String,
     },
+    Permission { id: i32, name: String },
     NoData,
+}
+
+impl From<Permission> for ResponseBody {
+    fn from(permission: Permission) -> Self {
+        ResponseBody::Permission {
+            id: permission.id(),
+            name: permission.name().to_owned(),
+        }
+    }
+}
+
+impl<T: Into<ResponseBody>> From<Option<T>> for ResponseBody {
+    fn from(option: Option<T>) -> Self {
+        if let Some(value) = option {
+            value.into()
+        } else {
+            ResponseBody::NoData
+        }
+    }
 }
 
 impl From<webtoken::Webtoken> for ResponseBody {
@@ -73,44 +94,19 @@ pub struct AuthResponse {
 }
 
 impl AuthResponse {
-    pub fn user_created(user: User) -> Self {
+    pub fn new<T>(message: &str, data: T) -> Self
+    where
+        T: Into<ResponseBody>,
+    {
         AuthResponse {
-            message: "User Created".to_owned(),
-            data: user.into(),
+            message: message.to_owned(),
+            data: data.into(),
         }
     }
 
-    pub fn authenticated(webtoken: Option<webtoken::Webtoken>) -> Self {
-        if let Some(webtoken) = webtoken {
-            AuthResponse {
-                message: "Authenticated".to_owned(),
-                data: webtoken.into(),
-            }
-        } else {
-            AuthResponse {
-                message: "Authenticated".to_owned(),
-                data: ResponseBody::NoData,
-            }
-        }
-    }
-
-    pub fn renewed(webtoken: webtoken::Webtoken) -> Self {
+    pub fn empty(message: &str) -> Self {
         AuthResponse {
-            message: "Renewed".to_owned(),
-            data: webtoken.into(),
-        }
-    }
-
-    pub fn user_verified(webtoken: webtoken::Webtoken) -> Self {
-        AuthResponse {
-            message: "User Verified".to_owned(),
-            data: webtoken.into(),
-        }
-    }
-
-    pub fn deleted() -> Self {
-        AuthResponse {
-            message: "Deleted".to_owned(),
+            message: message.to_owned(),
             data: ResponseBody::NoData,
         }
     }
@@ -124,6 +120,12 @@ pub enum AuthResult {
 impl From<AuthResponse> for AuthResult {
     fn from(auth_response: AuthResponse) -> Self {
         AuthResult::Ok(JSON(auth_response))
+    }
+}
+
+impl From<Error> for AuthResult {
+    fn from(err: Error) -> Self {
+        AuthResult::Err(err)
     }
 }
 

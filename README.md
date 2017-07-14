@@ -2,6 +2,12 @@
 Authentication is a user-management web service created in Rust using [Rocket](https://rocket.rs) and [Diesel](https://diesel.rs/). Please tell me how to make it more idiomatic; I'm new to this.
 
 ## Current abilities
+### Server binary
+#### Usage
+```bash
+$ cargo run --bin server
+```
+#### Information
 This application accepts data as JSON. It can create, verify, authenticate, and delete users.
  - `POST /sign-up`
     - INPUT: **username** and **password**
@@ -23,6 +29,20 @@ This application accepts data as JSON. It can create, verify, authenticate, and 
  - `POST /delete`
     - INPUT: **user_token** and **password**
     - Deletes **User**.
+ - `POST /new-permission`
+    - INPUT: **user_token** and **permission_name**
+    - If **user_token** represents and admin, creates a new **Permission** with **permission_name**
+ - `POST /give-permission`
+    - INPUT: **user_token**, **target_username**, and **permission_name**
+    - If **user_token** represents an admin, gives **target_user** the **permission**.
+
+### MakeAdmin binary
+#### Usage
+```bash
+$ cargo run --bin make_admin <username>
+```
+#### Information
+This binary accepts a username as a commandline argument and makes that user an admin.
 
 ## Contributing
 ### Setup
@@ -108,12 +128,12 @@ $ cargo build
 Run the application with 
 
 ```bash
-$ cargo run
+$ cargo run --bin server
 ```
 
 ### Testing
 
-Test the application with
+Test the application with. Currently there are only tests for the authentication_backend package. More tests will come.
 
 ```bash
 $ cargo test

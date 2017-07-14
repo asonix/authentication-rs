@@ -26,6 +26,12 @@ use authentication_backend::error;
 
 pub struct Error(error::Error);
 
+impl Error {
+    pub fn new(err: error::Error) -> Self {
+        Error(err)
+    }
+}
+
 impl From<error::Error> for Error {
     fn from(e: error::Error) -> Error {
         Error(e)

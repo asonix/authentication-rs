@@ -20,6 +20,47 @@
 use authentication_backend::authenticatable::{Authenticatable, ToAuth};
 
 #[derive(Deserialize)]
+pub struct CreatePermission {
+    authorizing_user: UserToken,
+    permission: String,
+}
+
+impl CreatePermission {
+    pub fn permission(&self) -> &str {
+        &self.permission
+    }
+}
+
+impl ToAuth for CreatePermission {
+    fn to_auth(&self) -> Authenticatable {
+        self.authorizing_user.to_auth()
+    }
+}
+
+#[derive(Deserialize)]
+pub struct GivePermission {
+    authorizing_user: UserToken,
+    target_user: String,
+    permission: String,
+}
+
+impl GivePermission {
+    pub fn permission(&self) -> &str {
+        &self.permission
+    }
+
+    pub fn target_user(&self) -> &str {
+        &self.target_user
+    }
+}
+
+impl ToAuth for GivePermission {
+    fn to_auth(&self) -> Authenticatable {
+        self.authorizing_user.to_auth()
+    }
+}
+
+#[derive(Deserialize)]
 pub struct CreateUser {
     username: String,
     password: String,

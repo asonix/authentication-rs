@@ -7,6 +7,5 @@ authors = ["Riley Trautman <asonix.dev@gmail.com>"]
 license = "GPL-3.0"
 
 [dependencies]
-diesel = { version = "0.13.0", features = ["postgres"] }
 authentication_backend = { path = "authentication_backend" }
 authentication_rocket = { path = "authentication_rocket" }

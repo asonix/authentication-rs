@@ -65,6 +65,24 @@ impl User {
         self.verified
     }
 
+    pub fn find_by_name(u_name: &str) -> Result<Self> {
+        use schema::users::dsl::*;
+
+        let db = CONFIG.db()?;
+        let user = users.filter(username.eq(u_name)).first::<Self>(db.conn())?;
+
+        Ok(user)
+    }
+
+    pub fn find_by_id(u_id: i32) -> Result<Self> {
+        use schema::users::dsl::*;
+
+        let db = CONFIG.db()?;
+        let user = users.filter(id.eq(u_id)).first::<Self>(db.conn())?;
+
+        Ok(user)
+    }
+
     pub fn has_permission(&self, permission: &str) -> bool {
         use models::user_permission::UserPermission;
         use models::permission::Permission;
@@ -272,13 +290,63 @@ impl User {
 mod tests {
     use super::*;
     use test_helper::*;
-    use models::user;
     use models::verification_code::VerificationCode;
     use schema::verification_codes::dsl::{verification_codes, user_id};
+    use super::test_helper::{with_user, teardown};
+
+    #[test]
+    fn find_by_name_finds_user() {
+        with_user(|user| {
+            let result = User::find_by_name(user.username());
+
+            assert!(result.is_ok(), "Failed to find user");
+
+            let result = result.unwrap();
+
+            assert_eq!(
+                result.username,
+                user.username,
+                "Found user has a different username"
+            );
+            assert_eq!(result.id, user.id, "Found user has a different id");
+        });
+    }
+
+    #[test]
+    fn find_by_name_fails_with_bad_name() {
+        let result = User::find_by_name("This is not a valid username");
+
+        assert!(!result.is_ok(), "Found user with invalid username");
+    }
+
+    #[test]
+    fn find_by_id_finds_user() {
+        with_user(|user| {
+            let result = User::find_by_id(user.id());
+
+            assert!(result.is_ok(), "Failed to find user");
+
+            let result = result.unwrap();
+
+            assert_eq!(
+                result.username,
+                user.username,
+                "Found user has a different username"
+            );
+            assert_eq!(result.id, user.id, "Found user has a different id");
+        });
+    }
+
+    #[test]
+    fn find_by_id_fails_with_bad_id() {
+        let result = User::find_by_id(-1);
+
+        assert!(!result.is_ok(), "Found user with invalid id");
+    }
 
     #[test]
     fn has_permission_verifies_new_user_is_not_admin() {
-        user::test_helper::with_user(|user| {
+        with_user(|user| {
             assert!(!user.has_permission("admin"), "New user is admin");
         });
     }
@@ -288,7 +356,7 @@ mod tests {
         use models::permission::Permission;
         use models::user_permission::UserPermission;
 
-        user::test_helper::with_user(|admin| {
+        with_user(|admin| {
             let admin_permission =
                 Permission::find("admin").expect("Failed to find admin permission");
 
@@ -301,7 +369,7 @@ mod tests {
                 "Failed to make test admin an admin"
             );
 
-            user::test_helper::with_user(|user| {
+            with_user(|user| {
                 let result = user.give_permission(&admin, "admin");
 
                 assert!(result.is_ok(), "Admin failed to give user new permission");
@@ -314,7 +382,7 @@ mod tests {
         use models::permission::Permission;
         use models::user_permission::UserPermission;
 
-        user::test_helper::with_user(|admin| {
+        with_user(|admin| {
             let admin_permission =
                 Permission::find("admin").expect("Failed to find admin permission");
 
@@ -327,7 +395,7 @@ mod tests {
                 "Failed to make test admin an admin"
             );
 
-            user::test_helper::with_user(|user| {
+            with_user(|user| {
                 let result = user.give_permission(&admin, "this is not a permission");
 
                 assert!(
@@ -348,12 +416,12 @@ mod tests {
         let result = User::create(&auth);
 
         assert!(result.is_ok(), "Failed to create user");
-        user::test_helper::teardown(result.unwrap().id());
+        teardown(result.unwrap().id());
     }
 
     #[test]
     fn update_password_updates_password() {
-        user::test_helper::with_user(|mut user| {
+        with_user(|mut user| {
             let result = user.update_password(test_password(), "P455w0rd$.");
 
             assert!(result.is_ok(), "Failed to update password");
@@ -362,7 +430,7 @@ mod tests {
 
     #[test]
     fn update_password_fails_with_bad_credentials() {
-        user::test_helper::with_user(|mut user| {
+        with_user(|mut user| {
             let result = user.update_password("not the password", test_password());
 
             assert!(!result.is_ok(), "Updated password with bad credentials");
@@ -371,7 +439,7 @@ mod tests {
 
     #[test]
     fn update_password_fails_with_weak_password() {
-        user::test_helper::with_user(|mut user| {
+        with_user(|mut user| {
             let result = user.update_password(test_password(), "asdfasdfasdf");
 
             assert!(!result.is_ok(), "Allowed update to weak password");
@@ -380,7 +448,7 @@ mod tests {
 
     #[test]
     fn update_username_updates_username() {
-        user::test_helper::with_user(|mut user| {
+        with_user(|mut user| {
             let result = user.update_username("some_new_username", test_password());
 
             assert!(result.is_ok(), "Failed to update username");
@@ -389,7 +457,7 @@ mod tests {
 
     #[test]
     fn update_username_fails_with_empty_username() {
-        user::test_helper::with_user(|mut user| {
+        with_user(|mut user| {
             let result = user.update_username("", test_password());
 
             assert!(!result.is_ok(), "Updated username to empty string");
@@ -398,7 +466,7 @@ mod tests {
 
     #[test]
     fn update_username_fails_with_bad_password() {
-        user::test_helper::with_user(|mut user| {
+        with_user(|mut user| {
             let result = user.update_username("new_username", "not the password");
 
             assert!(!result.is_ok(), "Updated username with bad credentials");
@@ -407,7 +475,7 @@ mod tests {
 
     #[test]
     fn verify_with_code_verifies_user() {
-        user::test_helper::with_user(|user| {
+        with_user(|user| {
             let vc = verification_codes
                 .filter(user_id.eq(user.id))
                 .first::<VerificationCode>(CONFIG.db().unwrap().conn())
@@ -423,7 +491,7 @@ mod tests {
 
     #[test]
     fn verify_with_code_deletes_code() {
-        user::test_helper::with_user(|user| {
+        with_user(|user| {
             let vc = verification_codes
                 .filter(user_id.eq(user.id))
                 .first::<VerificationCode>(CONFIG.db().unwrap().conn())
@@ -443,7 +511,7 @@ mod tests {
 
     #[test]
     fn verify_verifies_user() {
-        user::test_helper::with_user(|mut user| {
+        with_user(|mut user| {
             let result = user.verify(&CONFIG.db().unwrap());
 
             assert!(result, "Failed to verify user");
@@ -453,7 +521,7 @@ mod tests {
 
     #[test]
     fn create_webtoken_creates_webtoken() {
-        user::test_helper::with_user(|mut user| {
+        with_user(|mut user| {
             user.verify(&CONFIG.db().unwrap());
 
             let result = user.create_webtoken();
@@ -464,7 +532,7 @@ mod tests {
 
     #[test]
     fn unverified_users_cant_create_webtoken() {
-        user::test_helper::with_user(|user| {
+        with_user(|user| {
             let result = user.create_webtoken();
 
             assert!(!result.is_ok(), "Unverified User created webtoken");
@@ -473,7 +541,7 @@ mod tests {
 
     #[test]
     fn authenticate_gets_user_from_valid_webtoken() {
-        user::test_helper::with_user(|mut user| {
+        with_user(|mut user| {
             user.verify(&CONFIG.db().unwrap());
             let webtoken = user.create_webtoken().unwrap();
             let auth = Authenticatable::UserToken { user_token: webtoken.user_token() };
@@ -493,7 +561,7 @@ mod tests {
 
     #[test]
     fn authenticate_fails_with_bad_webtoken() {
-        user::test_helper::with_user(|_| {
+        with_user(|_| {
             let auth = Authenticatable::UserToken { user_token: "this is not a token" };
 
             let result = User::authenticate(&auth);
@@ -504,7 +572,7 @@ mod tests {
 
     #[test]
     fn authenticate_with_token_and_password_works() {
-        user::test_helper::with_user(|mut user| {
+        with_user(|mut user| {
             assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
 
             let webtoken = user.create_webtoken().unwrap();
@@ -525,7 +593,7 @@ mod tests {
 
     #[test]
     fn authenticate_fails_with_token_and_bad_password() {
-        user::test_helper::with_user(|mut user| {
+        with_user(|mut user| {
             assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
 
             let webtoken = user.create_webtoken().unwrap();
@@ -546,7 +614,7 @@ mod tests {
 
     #[test]
     fn authenticate_fails_with_bad_username() {
-        user::test_helper::with_user(|_| {
+        with_user(|_| {
             let auth = Authenticatable::UserAndPass {
                 username: "not the username",
                 password: test_password(),
@@ -560,7 +628,7 @@ mod tests {
 
     #[test]
     fn authenticate_fails_with_bad_password() {
-        user::test_helper::with_user(|user| {
+        with_user(|user| {
             let auth = Authenticatable::UserAndPass {
                 username: &user.username(),
                 password: "not the password",
@@ -574,7 +642,7 @@ mod tests {
 
     #[test]
     fn authenticate_authenticates_user() {
-        user::test_helper::with_user(|user| {
+        with_user(|user| {
             let auth = Authenticatable::UserAndPass {
                 username: &user.username(),
                 password: test_password(),
@@ -588,7 +656,7 @@ mod tests {
 
     #[test]
     fn delete_deletes_existing_user() {
-        user::test_helper::with_user(|user| {
+        with_user(|user| {
             let auth = Authenticatable::UserAndPass {
                 username: user.username(),
                 password: test_password(),
@@ -602,7 +670,7 @@ mod tests {
 
     #[test]
     fn delete_deletes_associated_verification_code() {
-        user::test_helper::with_user(|user| {
+        with_user(|user| {
             let vc = verification_codes
                 .filter(user_id.eq(user.id))
                 .first::<VerificationCode>(CONFIG.db().unwrap().conn());

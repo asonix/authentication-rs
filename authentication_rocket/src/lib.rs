@@ -45,6 +45,8 @@ pub fn launch() -> () {
                 routes::is_authenticated,
                 routes::verify,
                 routes::delete,
+                routes::create_permission,
+                routes::give_permission,
             ],
         )
         .launch();
