@@ -17,7 +17,7 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#![feature(plugin, try_trait)]
+#![feature(plugin)]
 #![plugin(rocket_codegen)]
 
 #[macro_use]

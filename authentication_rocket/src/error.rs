@@ -24,6 +24,7 @@ use rocket::Response;
 use rocket_contrib::Json;
 use authentication_backend::error;
 
+#[derive(Debug)]
 pub struct Error(error::Error);
 
 impl Error {

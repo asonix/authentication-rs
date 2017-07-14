@@ -17,8 +17,6 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use std::ops::Try;
-use std::result;
 use std::convert::From;
 use rocket::request::Request;
 use rocket::response::{self, Responder};
@@ -26,7 +24,6 @@ use rocket_contrib::Json;
 use authentication_backend::models::user::User;
 use authentication_backend::models::permission::Permission;
 use authentication_backend::webtoken;
-use error::Error;
 
 #[derive(Serialize)]
 #[serde(tag = "type")]
@@ -112,48 +109,8 @@ impl AuthResponse {
     }
 }
 
-pub enum AuthResult {
-    Ok(Json<AuthResponse>),
-    Err(Error),
-}
-
-impl From<AuthResponse> for AuthResult {
-    fn from(auth_response: AuthResponse) -> Self {
-        AuthResult::Ok(Json(auth_response))
-    }
-}
-
-impl From<Error> for AuthResult {
-    fn from(err: Error) -> Self {
-        AuthResult::Err(err)
-    }
-}
-
-impl Try for AuthResult {
-    type Ok = Json<AuthResponse>;
-    type Error = Error;
-
-    fn into_result(self) -> result::Result<Self::Ok, Self::Error> {
-        match self {
-            AuthResult::Ok(ok) => Ok(ok),
-            AuthResult::Err(err) => Err(err),
-        }
-    }
-
-    fn from_error(v: Self::Error) -> Self {
-        AuthResult::Err(v)
-    }
-
-    fn from_ok(v: Self::Ok) -> Self {
-        AuthResult::Ok(v)
-    }
-}
-
-impl<'r> Responder<'r> for AuthResult {
+impl<'r> Responder<'r> for AuthResponse {
     fn respond_to(self, req: &Request) -> response::Result<'r> {
-        match self {
-            AuthResult::Ok(json) => json.respond_to(req),
-            AuthResult::Err(err) => err.respond_to(req),
-        }
+        Json(self).respond_to(req)
     }
 }
