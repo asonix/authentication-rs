@@ -22,7 +22,7 @@ use authentication_backend::models::user::User;
 use authentication_backend::webtoken::Webtoken;
 use authentication_backend::error::Error::PermissionError;
 use error::Error;
-use auth_result::AuthResponse;
+use auth_response::AuthResponse;
 use input_types::{UserToken, UserTokenWithPassword, CreateUser, RenewalToken, GivePermission,
                   CreatePermission};
 use rocket_contrib::Json;

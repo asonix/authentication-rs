@@ -18,8 +18,7 @@
  */
 
 use std::convert::From;
-use rocket::request::Request;
-use rocket::response::{self, Responder};
+use rocket::request::Request; use rocket::response::{self, Responder};
 use rocket_contrib::Json;
 use authentication_backend::models::user::User;
 use authentication_backend::models::permission::Permission;
