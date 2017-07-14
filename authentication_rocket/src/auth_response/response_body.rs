@@ -18,11 +18,9 @@
  */
 
 use std::convert::From;
-use rocket::request::Request; use rocket::response::{self, Responder};
-use rocket_contrib::Json;
+use authentication_backend::webtoken;
 use authentication_backend::models::user::User;
 use authentication_backend::models::permission::Permission;
-use authentication_backend::webtoken;
 
 #[derive(Serialize)]
 #[serde(tag = "type")]
@@ -74,7 +72,7 @@ impl From<User> for ResponseBody {
 }
 
 impl ResponseBody {
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         match *self {
             ResponseBody::NoData => true,
             _ => false,
@@ -82,34 +80,3 @@ impl ResponseBody {
     }
 }
 
-#[derive(Serialize)]
-pub struct AuthResponse {
-    message: String,
-    #[serde(skip_serializing_if = "ResponseBody::is_empty")]
-    data: ResponseBody,
-}
-
-impl AuthResponse {
-    pub fn new<T>(message: &str, data: T) -> Self
-    where
-        T: Into<ResponseBody>,
-    {
-        AuthResponse {
-            message: message.to_owned(),
-            data: data.into(),
-        }
-    }
-
-    pub fn empty(message: &str) -> Self {
-        AuthResponse {
-            message: message.to_owned(),
-            data: ResponseBody::NoData,
-        }
-    }
-}
-
-impl<'r> Responder<'r> for AuthResponse {
-    fn respond_to(self, req: &Request) -> response::Result<'r> {
-        Json(self).respond_to(req)
-    }
-}
