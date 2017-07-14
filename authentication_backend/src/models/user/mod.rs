@@ -132,7 +132,7 @@ impl User {
         Ok(user)
     }
 
-    fn verify(&mut self, db: &DB) -> bool {
+    pub fn verify(&mut self, db: &DB) -> bool {
         use schema::users::dsl::*;
 
         let updated_record = diesel::update(users.filter(id.eq(self.id)))

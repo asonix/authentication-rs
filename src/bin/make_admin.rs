@@ -6,7 +6,6 @@ use authentication_backend::models::permission::Permission;
 use authentication_backend::models::user_permission::UserPermission;
 
 fn main() {
-
     let mut args = env::args();
 
     if args.len() != 2 {

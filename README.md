@@ -42,7 +42,15 @@ This application accepts data as JSON. It can create, verify, authenticate, and 
 $ cargo run --bin make_admin <username>
 ```
 #### Information
-This binary accepts a username as a commandline argument and makes that user an admin.
+This binary accepts a **username** as a commandline argument and makes that user an admin.
+
+### VerifyUser binary
+#### Usage
+```bash
+$ cargo run --bin verify_user <username>
+```
+#### Information
+This binary accepts a **username** cas a commandline argument and verifies that user.
 
 ## Contributing
 ### Setup
