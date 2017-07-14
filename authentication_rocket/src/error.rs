@@ -21,7 +21,7 @@ use rocket::response::{self, Responder};
 use rocket::http::Status;
 use rocket::request::Request;
 use rocket::Response;
-use rocket_contrib::JSON;
+use rocket_contrib::Json;
 use authentication_backend::error;
 
 pub struct Error(error::Error);
@@ -64,7 +64,7 @@ impl<'r> Responder<'r> for Error {
             error::Error::IOError => Status::InternalServerError,
         };
 
-        let json_response = JSON(ErrorResponse::from_error(self)).respond_to(req)?;
+        let json_response = Json(ErrorResponse::from_error(self)).respond_to(req)?;
 
         let response = Response::build()
             .status(status)

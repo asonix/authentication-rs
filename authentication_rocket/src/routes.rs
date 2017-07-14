@@ -25,17 +25,17 @@ use error::Error;
 use auth_result::{AuthResult, AuthResponse};
 use input_types::{UserToken, UserTokenWithPassword, CreateUser, RenewalToken, GivePermission,
                   CreatePermission};
-use rocket_contrib::JSON;
+use rocket_contrib::Json;
 
 #[post("/sign-up", format = "application/json", data = "<create_user>")]
-pub fn sign_up(create_user: JSON<CreateUser>) -> AuthResult {
+pub fn sign_up(create_user: Json<CreateUser>) -> AuthResult {
     let user = User::create(&create_user.0)?;
 
     AuthResponse::new("User created", user).into()
 }
 
 #[post("/log-in", format = "application/json", data = "<create_user>")]
-pub fn log_in(create_user: JSON<CreateUser>) -> AuthResult {
+pub fn log_in(create_user: Json<CreateUser>) -> AuthResult {
     let user = User::authenticate(&create_user.0)?;
 
     let token = user.create_webtoken().ok();
@@ -44,14 +44,14 @@ pub fn log_in(create_user: JSON<CreateUser>) -> AuthResult {
 }
 
 #[post("/renew", format = "application/json", data = "<renewal_token>")]
-pub fn renew(renewal_token: JSON<RenewalToken>) -> AuthResult {
+pub fn renew(renewal_token: Json<RenewalToken>) -> AuthResult {
     let webtoken = Webtoken::renew(&renewal_token.0.renewal_token)?;
 
     AuthResponse::new("Renewed", webtoken).into()
 }
 
 #[post("/is-authenticated", format = "application/json", data = "<token>")]
-pub fn is_authenticated(token: JSON<UserToken>) -> AuthResult {
+pub fn is_authenticated(token: Json<UserToken>) -> AuthResult {
     User::authenticate(&token.0)?;
 
     AuthResponse::empty("Authenticated").into()
@@ -67,14 +67,14 @@ pub fn verify(verification_token: String) -> AuthResult {
 }
 
 #[post("/delete", format = "application/json", data = "<token_with_password>")]
-pub fn delete(token_with_password: JSON<UserTokenWithPassword>) -> AuthResult {
+pub fn delete(token_with_password: Json<UserTokenWithPassword>) -> AuthResult {
     User::delete(&token_with_password.0)?;
 
     AuthResponse::empty("Deleted").into()
 }
 
 #[post("/new-permission", format = "application/json", data = "<new_permission>")]
-pub fn create_permission(new_permission: JSON<CreatePermission>) -> AuthResult {
+pub fn create_permission(new_permission: Json<CreatePermission>) -> AuthResult {
     let user = User::authenticate(&new_permission.0)?;
 
     if user.has_permission("admin") {
@@ -87,7 +87,7 @@ pub fn create_permission(new_permission: JSON<CreatePermission>) -> AuthResult {
 }
 
 #[post("/give-permission", format = "application/json", data = "<give_permission>")]
-pub fn give_permission(give_permission: JSON<GivePermission>) -> AuthResult {
+pub fn give_permission(give_permission: Json<GivePermission>) -> AuthResult {
     let authorizing_user = User::authenticate(&give_permission.0)?;
 
     let target_user = User::find_by_name(&give_permission.0.target_user())?;

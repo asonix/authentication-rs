@@ -22,7 +22,7 @@ use std::result;
 use std::convert::From;
 use rocket::request::Request;
 use rocket::response::{self, Responder};
-use rocket_contrib::JSON;
+use rocket_contrib::Json;
 use authentication_backend::models::user::User;
 use authentication_backend::models::permission::Permission;
 use authentication_backend::webtoken;
@@ -113,13 +113,13 @@ impl AuthResponse {
 }
 
 pub enum AuthResult {
-    Ok(JSON<AuthResponse>),
+    Ok(Json<AuthResponse>),
     Err(Error),
 }
 
 impl From<AuthResponse> for AuthResult {
     fn from(auth_response: AuthResponse) -> Self {
-        AuthResult::Ok(JSON(auth_response))
+        AuthResult::Ok(Json(auth_response))
     }
 }
 
@@ -130,7 +130,7 @@ impl From<Error> for AuthResult {
 }
 
 impl Try for AuthResult {
-    type Ok = JSON<AuthResponse>;
+    type Ok = Json<AuthResponse>;
     type Error = Error;
 
     fn into_result(self) -> result::Result<Self::Ok, Self::Error> {
