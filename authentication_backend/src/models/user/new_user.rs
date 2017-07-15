@@ -23,7 +23,7 @@ use bcrypt::{DEFAULT_COST, hash};
 use CONFIG;
 use super::User;
 use schema::users;
-use error::{Error, Result};
+use error::{InputErrorKind, Error, Result};
 use authenticatable::Authenticatable;
 use super::helpers::{validate_username, validate_password};
 
@@ -41,7 +41,7 @@ impl NewUser {
                 username: u,
                 password: p,
             } => (u, p),
-            _ => return Err(Error::InvalidAuthError),
+            _ => return Err(Error::InputError(InputErrorKind::Authenticatable)),
         };
 
         let password = validate_password(password)?;

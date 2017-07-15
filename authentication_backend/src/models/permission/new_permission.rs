@@ -20,7 +20,9 @@
 use diesel;
 use diesel::prelude::*;
 use CONFIG;
-use error::{Result, Error};
+use error::Result;
+use error::Error::InputError;
+use error::InputErrorKind::PermissionName;
 use super::Permission;
 use schema::permissions;
 
@@ -49,7 +51,7 @@ impl NewPermission {
         if name.len() > 0 {
             Ok(name)
         } else {
-            Err(Error::InvalidPermissionNameError)
+            Err(InputError(PermissionName))
         }
     }
 }

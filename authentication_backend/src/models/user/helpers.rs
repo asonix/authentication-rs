@@ -18,36 +18,54 @@
  */
 
 use CONFIG;
-use error::{Result, Error};
+use error::Result;
+use error::Error::InputError;
+use error::InputErrorKind::{Username, Password};
+use error::UsernameErrorKind;
+use error::UsernameErrorKind::Blank;
+use error::PasswordErrorKind;
+use error::PasswordErrorKind::{TooShort, NoNumber, NoSymbol, NoUppercase, NoLowercase};
 
 pub fn validate_password(password: &str) -> Result<&str> {
+    let mut error_vec: Vec<PasswordErrorKind> = Vec::new();
+
     if password.len() < 8 {
-        return Err(Error::InvalidPasswordError);
+        error_vec.push(TooShort);
     }
 
     if !CONFIG.password_regex().numbers().is_match(password) {
-        return Err(Error::InvalidPasswordError);
+        error_vec.push(NoNumber);
     }
 
     if !CONFIG.password_regex().symbols().is_match(password) {
-        return Err(Error::InvalidPasswordError);
+        error_vec.push(NoSymbol);
     }
 
     if !CONFIG.password_regex().upper().is_match(password) {
-        return Err(Error::InvalidPasswordError);
+        error_vec.push(NoUppercase);
     }
 
     if !CONFIG.password_regex().lower().is_match(password) {
-        return Err(Error::InvalidPasswordError);
+        error_vec.push(NoLowercase);
     }
 
-    Ok(password)
+    if error_vec.len() == 0 {
+        Ok(password)
+    } else {
+        Err(InputError(Password(error_vec)))
+    }
 }
 
 pub fn validate_username(username: &str) -> Result<&str> {
-    if username.len() < 1 {
-        return Err(Error::InvalidUsernameError);
+    let mut error_vec: Vec<UsernameErrorKind> = Vec::new();
+
+    if username.len() == 0 {
+        error_vec.push(Blank)
     }
 
-    Ok(username)
+    if error_vec.len() == 0 {
+        Ok(username)
+    } else {
+        Err(InputError(Username(error_vec)))
+    }
 }

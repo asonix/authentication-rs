@@ -17,35 +17,131 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use diesel;
-use bcrypt;
 use std::io;
 use std::result;
-use std::num;
 use r2d2::GetTimeout;
-use jwt::errors;
-use jwt::errors::ErrorKind;
+use std::num::ParseIntError;
+use bcrypt::BcryptError;
+use diesel::result::Error as DbError;
+use std::error::Error as StdError;
+use jwt::errors::Error as JWTError;
 use std::fmt;
 
+pub type Result<T> = result::Result<T, Error>;
+
 pub enum Error {
-    GetDbError,
-    NoResultError,
-    DieselError,
-    PasswordHashError,
-    InvalidPermissionNameError,
-    InvalidPasswordError,
-    InvalidUsernameError,
+    BcryptError(BcryptError),
+    DbError(DbError),
+    InputError(InputErrorKind),
+    JWTError(JWTError),
+    DbTimeout,
+    IOError,
+    ParseError,
     PasswordMatchError,
     PermissionError,
-    InvalidAuthError,
     UserNotVerifiedError,
-    InvalidWebtokenError,
-    ExpiredWebtokenError,
-    ParseError,
-    IOError,
 }
 
-pub type Result<T> = result::Result<T, Error>;
+pub enum InputErrorKind {
+    Password(Vec<PasswordErrorKind>),
+    Username(Vec<UsernameErrorKind>),
+    Authenticatable,
+    PermissionName,
+}
+
+impl ToString for InputErrorKind {
+    fn to_string(&self) -> String {
+        match *self {
+            InputErrorKind::Password(ref err_vec) => {
+                let messages: Vec<String> = err_vec.iter().map(|p| p.to_string()).collect();
+
+                messages.join(", ")
+            }
+            InputErrorKind::Username(ref err_vec) => {
+                let messages: Vec<String> = err_vec.iter().map(|u| u.to_string()).collect();
+
+                messages.join(", ")
+            }
+            InputErrorKind::Authenticatable => "Invalid authentication format".to_string(),
+            InputErrorKind::PermissionName => "Invalid permission name".to_string(),
+        }
+    }
+}
+
+pub enum PasswordErrorKind {
+    NoLowercase,
+    NoNumber,
+    NoSymbol,
+    NoUppercase,
+    TooShort,
+}
+
+impl ToString for PasswordErrorKind {
+    fn to_string(&self) -> String {
+        match *self {
+            PasswordErrorKind::NoLowercase => "Password must contain at least one lowercase letter".to_string(),
+            PasswordErrorKind::NoNumber => "Password must contain at least one number".to_string(),
+            PasswordErrorKind::NoSymbol => "Password must contain at least one symbol".to_string(),
+            PasswordErrorKind::NoUppercase => "Password must contain at least one uppercase letter".to_string(),
+            PasswordErrorKind::TooShort => "Password must be at least 8 characters".to_string(),
+        }
+    }
+}
+
+pub enum UsernameErrorKind {
+    Blank,
+}
+
+impl ToString for UsernameErrorKind {
+    fn to_string(&self) -> String {
+        match *self {
+            UsernameErrorKind::Blank => "Username must not be blank".to_string(),
+        }
+    }
+}
+
+impl Error {
+    fn input_description(input_error: &InputErrorKind) -> &str {
+        match *input_error {
+            InputErrorKind::Password(_) => "Invalid password",
+            InputErrorKind::Username(_) => "Invalid username",
+            InputErrorKind::Authenticatable => "Invalid authentication format",
+            InputErrorKind::PermissionName => "Invalid permission name",
+        }
+    }
+}
+
+impl StdError for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::BcryptError(ref bcrypt_error) => bcrypt_error.description(),
+            Error::DbError(ref db_error) => db_error.description(),
+            Error::InputError(ref input_error) => Error::input_description(input_error),
+            Error::JWTError(ref jwt_error) => jwt_error.description(),
+            Error::DbTimeout => "Failed to get Database",
+            Error::IOError => "Timed out while waiting for database",
+            Error::ParseError => "Could not parse data from string",
+            Error::PasswordMatchError => "Passwords do not match",
+            Error::PermissionError => "Not allowed to perform this action",
+            Error::UserNotVerifiedError => "User is not verified",
+        }
+    }
+
+    fn cause(&self) -> Option<&StdError> {
+        match *self {
+            Error::BcryptError(ref bcrypt_error) => Some(bcrypt_error),
+            Error::DbError(ref db_error) => Some(db_error),
+            Error::JWTError(ref jwt_error) => Some(jwt_error),
+            _ => None
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
 
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -53,60 +149,32 @@ impl fmt::Debug for Error {
     }
 }
 
-impl ToString for Error {
-    fn to_string(&self) -> String {
-        match *self {
-            Error::GetDbError => "Timed out while waiting for database".to_string(),
-            Error::NoResultError => "Could not find requested resource".to_string(),
-            Error::DieselError => "Invalid database interaction".to_string(),
-            Error::PasswordHashError => "Could not hash password".to_string(),
-            Error::InvalidPermissionNameError => "Permission did not meet requirements".to_string(),
-            Error::InvalidPasswordError => "Password did not meet requirements".to_string(),
-            Error::InvalidUsernameError => "Username did not meet requirements".to_string(),
-            Error::PasswordMatchError => "Passwords do not match".to_string(),
-            Error::PermissionError => "Not allowed to perform this action".to_string(),
-            Error::InvalidAuthError => "Wrong type of authentication provided".to_string(),
-            Error::UserNotVerifiedError => "User is not verified".to_string(),
-            Error::InvalidWebtokenError => "Webtoken is invalid".to_string(),
-            Error::ExpiredWebtokenError => "Webtoken has expired".to_string(),
-            Error::ParseError => "Could not parse data from string".to_string(),
-            Error::IOError => "Something went wrong".to_string(),
-        }
-    }
-}
-
-impl From<diesel::result::Error> for Error {
-    fn from(e: diesel::result::Error) -> Error {
-        match e {
-            diesel::result::Error::NotFound => Error::NoResultError,
-            _ => Error::DieselError,
-        }
+impl From<DbError> for Error {
+    fn from(e: DbError) -> Error {
+        Error::DbError(e)
     }
 }
 
 impl From<GetTimeout> for Error {
     fn from(_: GetTimeout) -> Error {
-        Error::GetDbError
+        Error::DbTimeout
     }
 }
 
-impl From<bcrypt::BcryptError> for Error {
-    fn from(_: bcrypt::BcryptError) -> Error {
-        Error::PasswordHashError
+impl From<BcryptError> for Error {
+    fn from(e: BcryptError) -> Error {
+        Error::BcryptError(e)
     }
 }
 
-impl From<errors::Error> for Error {
-    fn from(e: errors::Error) -> Error {
-        match *e.kind() {
-            ErrorKind::ExpiredSignature => Error::ExpiredWebtokenError,
-            _ => Error::InvalidWebtokenError,
-        }
+impl From<JWTError> for Error {
+    fn from(e: JWTError) -> Error {
+        Error::JWTError(e)
     }
 }
 
-impl From<num::ParseIntError> for Error {
-    fn from(_: num::ParseIntError) -> Error {
+impl From<ParseIntError> for Error {
+    fn from(_: ParseIntError) -> Error {
         Error::ParseError
     }
 }
