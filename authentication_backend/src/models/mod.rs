@@ -17,7 +17,12 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-pub mod user;
-pub mod verification_code;
-pub mod permission;
-pub mod user_permission;
+mod user;
+mod verification_code;
+mod permission;
+mod user_permission;
+
+pub use self::user::User;
+pub use self::verification_code::VerificationCode;
+pub use self::permission::Permission;
+pub use self::user_permission::UserPermission;

@@ -21,10 +21,8 @@ use diesel;
 use diesel::prelude::*;
 use CONFIG;
 use error::Result;
-use super::UserPermission;
 use schema::user_permissions;
-use models::user::User;
-use models::permission::Permission;
+use models::{User, Permission, UserPermission};
 
 #[derive(Insertable)]
 #[table_name = "user_permissions"]

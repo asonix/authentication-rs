@@ -17,79 +17,11 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use CONFIG;
-use schema::permissions;
-use error::Result;
-use self::new_permission::NewPermission;
+mod permission;
+mod new_permission;
 
-pub mod new_permission;
+pub use self::permission::Permission;
+pub use self::new_permission::NewPermission;
 
 #[cfg(test)]
 pub mod test_helper;
-
-#[derive(Debug, PartialEq, Queryable, Identifiable, AsChangeset, Associations)]
-pub struct Permission {
-    id: i32,
-    name: String,
-}
-
-impl Permission {
-    pub fn create(name: &str) -> Result<Self> {
-        let new_permission = NewPermission::new(name)?;
-
-        new_permission.save()
-    }
-
-    pub fn id(&self) -> i32 {
-        self.id
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn find(permission: &str) -> Result<Self> {
-        use diesel::prelude::*;
-        use schema::permissions::dsl::*;
-
-        let db = CONFIG.db()?;
-
-        let permission = permissions
-            .filter(name.eq(permission))
-            .first::<Permission>(db.conn())?;
-
-        Ok(permission)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test_helper::generate_string;
-    use super::test_helper::teardown;
-
-    #[test]
-    fn create_creates_permission() {
-        let result = Permission::create(&generate_string());
-
-        assert!(result.is_ok(), "Failed to create permission");
-
-        if let Ok(permission) = result {
-            teardown(permission.id);
-        }
-    }
-
-    #[test]
-    fn find_finds_admin_permission() {
-        let result = Permission::find("admin");
-
-        assert!(result.is_ok(), "admin permission not found");
-    }
-
-    #[test]
-    fn find_doesnt_find_fake_permission() {
-        let result = Permission::find("This is not a permission");
-
-        assert!(!result.is_ok(), "Fake permission found");
-    }
-}

@@ -57,7 +57,7 @@ impl NewUser {
 
     pub fn save(&self) -> Result<User> {
         use schema::users;
-        use models::verification_code::new_verification_code::NewVerificationCode;
+        use models::verification_code::NewVerificationCode;
 
         let db = CONFIG.db()?;
 
@@ -65,7 +65,7 @@ impl NewUser {
             db.conn(),
         )?;
 
-        let verification_code = NewVerificationCode::new_by_id(user.id)?;
+        let verification_code = NewVerificationCode::new_by_id(user.id())?;
 
         let _ = verification_code.save()?;
 

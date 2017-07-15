@@ -21,9 +21,8 @@ use diesel;
 use diesel::prelude::*;
 use error::Result;
 use CONFIG;
-use models::user::User;
-use super::VerificationCode;
 use schema::verification_codes;
+use models::{User, VerificationCode};
 
 #[derive(Insertable)]
 #[table_name = "verification_codes"]

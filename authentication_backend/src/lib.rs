@@ -49,10 +49,7 @@ mod error;
 mod webtoken;
 mod authenticatable;
 
-pub use models::user::User;
-pub use models::permission::Permission;
-pub use models::user_permission::UserPermission;
-pub use models::verification_code::VerificationCode;
+pub use models::{User, Permission, UserPermission, VerificationCode};
 pub use error::Error;
 pub use webtoken::Webtoken;
 pub use authenticatable::{Authenticatable, ToAuth};

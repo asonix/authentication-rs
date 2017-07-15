@@ -23,8 +23,7 @@ use CONFIG;
 use std::panic;
 use test_helper::*;
 use error::Result;
-use super::User;
-use super::new_user::NewUser;
+use super::{User, NewUser};
 use authenticatable::Authenticatable;
 
 pub fn teardown(u_id: i32) -> () {
