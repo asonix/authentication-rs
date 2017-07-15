@@ -18,19 +18,12 @@
  */
 
 use std::io;
-use std::result;
+use std::fmt;
 use r2d2::GetTimeout;
 use std::num::ParseIntError;
 use std::error::Error as StdError;
-use std::fmt;
 
-pub use bcrypt::BcryptError;
-pub use diesel::result::Error as DbError;
-pub use diesel::result::DatabaseErrorKind as DbErrorKind;
-pub use jwt::errors::Error as JWTError;
-pub use jwt::errors::ErrorKind as JWTErrorKind;
-
-pub type Result<T> = result::Result<T, Error>;
+use super::{InputErrorKind, BcryptError, DbError, JWTError};
 
 pub enum Error {
     BcryptError(BcryptError),
@@ -43,68 +36,6 @@ pub enum Error {
     PasswordMatchError,
     PermissionError,
     UserNotVerifiedError,
-}
-
-pub enum InputErrorKind {
-    Password(Vec<PasswordErrorKind>),
-    Username(Vec<UsernameErrorKind>),
-    Authenticatable,
-    PermissionName,
-}
-
-impl ToString for InputErrorKind {
-    fn to_string(&self) -> String {
-        match *self {
-            InputErrorKind::Password(ref err_vec) => {
-                let messages: Vec<String> = err_vec.iter().map(|p| p.to_string()).collect();
-
-                messages.join(", ")
-            }
-            InputErrorKind::Username(ref err_vec) => {
-                let messages: Vec<String> = err_vec.iter().map(|u| u.to_string()).collect();
-
-                messages.join(", ")
-            }
-            InputErrorKind::Authenticatable => "Invalid authentication format".to_string(),
-            InputErrorKind::PermissionName => "Invalid permission name".to_string(),
-        }
-    }
-}
-
-pub enum PasswordErrorKind {
-    NoLowercase,
-    NoNumber,
-    NoSymbol,
-    NoUppercase,
-    TooShort,
-}
-
-impl ToString for PasswordErrorKind {
-    fn to_string(&self) -> String {
-        match *self {
-            PasswordErrorKind::NoLowercase => {
-                "Password must contain at least one lowercase letter".to_string()
-            }
-            PasswordErrorKind::NoNumber => "Password must contain at least one number".to_string(),
-            PasswordErrorKind::NoSymbol => "Password must contain at least one symbol".to_string(),
-            PasswordErrorKind::NoUppercase => {
-                "Password must contain at least one uppercase letter".to_string()
-            }
-            PasswordErrorKind::TooShort => "Password must be at least 8 characters".to_string(),
-        }
-    }
-}
-
-pub enum UsernameErrorKind {
-    Blank,
-}
-
-impl ToString for UsernameErrorKind {
-    fn to_string(&self) -> String {
-        match *self {
-            UsernameErrorKind::Blank => "Username must not be blank".to_string(),
-        }
-    }
 }
 
 impl Error {

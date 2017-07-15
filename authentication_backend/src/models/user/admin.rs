@@ -26,6 +26,14 @@ pub struct Admin<'a> {
 }
 
 impl<'a> Admin<'a> {
+    pub fn id(&self) -> i32 {
+        self.id
+    }
+
+    pub fn username(&self) -> &'a str {
+        self.username
+    }
+
     pub fn from_user(user: &User) -> Result<Admin> {
         if user.has_permission("admin") {
             Ok(Admin {
