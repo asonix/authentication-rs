@@ -18,6 +18,7 @@
  */
 
 mod user;
+mod admin;
 mod new_user;
 mod helpers;
 
@@ -25,4 +26,5 @@ mod helpers;
 pub mod test_helper;
 
 pub use self::user::User;
+pub use self::admin::Admin;
 pub use self::new_user::NewUser;

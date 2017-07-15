@@ -89,21 +89,6 @@ impl User {
         UserPermission::has_permission(&self, &permission)
     }
 
-    pub fn give_permission(&self, authorizer: &Self, permission: &str) -> Result<()> {
-        use models::user_permission::UserPermission;
-        use models::permission::Permission;
-
-        if authorizer.has_permission("admin") {
-            let permission = Permission::find(permission)?;
-
-            let _ = UserPermission::create(&self, &permission)?;
-
-            Ok(())
-        } else {
-            Err(Error::PermissionError)
-        }
-    }
-
     pub fn verify_with_code(vc: &str) -> Result<Self> {
         use schema::verification_codes::dsl::{verification_codes, code, user_id};
         use schema::users::dsl::*;
@@ -341,61 +326,6 @@ mod tests {
     fn has_permission_verifies_new_user_is_not_admin() {
         with_user(|user| {
             assert!(!user.has_permission("admin"), "New user is admin");
-        });
-    }
-
-    #[test]
-    fn admin_can_give_permissions_to_non_admins() {
-        use models::permission::Permission;
-        use models::user_permission::UserPermission;
-
-        with_user(|admin| {
-            let admin_permission =
-                Permission::find("admin").expect("Failed to find admin permission");
-
-            let _ = UserPermission::create(&admin, &admin_permission).expect(
-                "Failed to make test admin user_permission",
-            );
-
-            assert!(
-                admin.has_permission("admin"),
-                "Failed to make test admin an admin"
-            );
-
-            with_user(|user| {
-                let result = user.give_permission(&admin, "admin");
-
-                assert!(result.is_ok(), "Admin failed to give user new permission");
-            });
-        });
-    }
-
-    #[test]
-    fn admin_cannot_give_nonexistant_permission() {
-        use models::permission::Permission;
-        use models::user_permission::UserPermission;
-
-        with_user(|admin| {
-            let admin_permission =
-                Permission::find("admin").expect("Failed to find admin permission");
-
-            let _ = UserPermission::create(&admin, &admin_permission).expect(
-                "Failed to make test admin user_permission",
-            );
-
-            assert!(
-                admin.has_permission("admin"),
-                "Failed to make test admin an admin"
-            );
-
-            with_user(|user| {
-                let result = user.give_permission(&admin, "this is not a permission");
-
-                assert!(
-                    !result.is_ok(),
-                    "Admin gave a user a nonexistant permission"
-                );
-            });
         });
     }
 
