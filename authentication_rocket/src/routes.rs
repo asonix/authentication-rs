@@ -21,13 +21,13 @@ use authentication_backend::Permission;
 use authentication_backend::User;
 use authentication_backend::Webtoken;
 use authentication_backend::Error::PermissionError;
-use error::AuthError;
+use error::Error;
 use auth_response::AuthResponse;
 use input_types::{UserToken, UserTokenWithPassword, CreateUser, RenewalToken, GivePermission,
                   CreatePermission};
 use rocket_contrib::Json;
 
-type Response = Result<AuthResponse, AuthError>;
+type Response = Result<AuthResponse, Error>;
 
 #[post("/sign-up", format = "application/json", data = "<create_user>")]
 pub fn sign_up(create_user: Json<CreateUser>) -> Response {
@@ -84,7 +84,7 @@ pub fn create_permission(new_permission: Json<CreatePermission>) -> Response {
 
         Ok(AuthResponse::new("Permission created", permission))
     } else {
-        Err(AuthError::new(PermissionError))
+        Err(Error::new(PermissionError))
     }
 }
 

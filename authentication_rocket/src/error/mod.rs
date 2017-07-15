@@ -22,50 +22,87 @@ use rocket::http::Status;
 use rocket::request::Request;
 use rocket::Response;
 use rocket_contrib::Json;
-use authentication_backend::Error;
+use authentication_backend::Error as BackendError;
+use authentication_backend::{BcryptError, DbError, DbErrorKind, JWTError, JWTErrorKind};
 use self::error_response::ErrorResponse;
 
 mod error_response;
 
 #[derive(Debug)]
-pub struct AuthError(Error);
+pub struct Error(BackendError);
 
-impl AuthError {
-    pub fn new(err: Error) -> Self {
-        AuthError(err)
+impl Error {
+    pub fn new(err: BackendError) -> Self {
+        Error(err)
+    }
+
+    fn bcrypt_status(_err: &BcryptError) -> Status {
+        Status::InternalServerError
+    }
+
+    fn db_kind_status(err: &DbErrorKind) -> Status {
+        match *err {
+            DbErrorKind::UniqueViolation => Status::BadRequest,
+            DbErrorKind::ForeignKeyViolation => Status::BadRequest,
+            DbErrorKind::UnableToSendCommand => Status::InternalServerError,
+            _ => Status::InternalServerError,
+        }
+    }
+
+    fn db_status(err: &DbError) -> Status {
+        match *err {
+            DbError::InvalidCString(_) => Status::InternalServerError,
+            DbError::DatabaseError(ref err, _) => Error::db_kind_status(err),
+            DbError::NotFound => Status::BadRequest,
+            DbError::QueryBuilderError(_) => Status::InternalServerError,
+            DbError::DeserializationError(_) => Status::InternalServerError,
+            DbError::SerializationError(_) => Status::InternalServerError,
+            _ => Status::InternalServerError,
+        }
+    }
+
+    fn jwt_status(err: &JWTError) -> Status {
+        match *err.kind() {
+            JWTErrorKind::InvalidToken => Status::BadRequest,
+            JWTErrorKind::InvalidSignature => Status::BadRequest,
+            JWTErrorKind::InvalidKey => Status::InternalServerError,
+            JWTErrorKind::ExpiredSignature => Status::Unauthorized,
+            JWTErrorKind::InvalidIssuer => Status::Unauthorized,
+            JWTErrorKind::InvalidAudience => Status::Unauthorized,
+            JWTErrorKind::InvalidSubject => Status::Unauthorized,
+            JWTErrorKind::InvalidIssuedAt => Status::Unauthorized,
+            JWTErrorKind::ImmatureSignature => Status::Unauthorized,
+            JWTErrorKind::InvalidAlgorithm => Status::Unauthorized,
+            _ => Status::InternalServerError,
+        }
     }
 }
 
-impl From<Error> for AuthError {
-    fn from(e: Error) -> AuthError {
-        AuthError(e)
+impl From<BackendError> for Error {
+    fn from(e: BackendError) -> Error {
+        Error(e)
     }
 }
 
-impl ToString for AuthError {
+impl ToString for Error {
     fn to_string(&self) -> String {
         self.0.to_string()
     }
 }
 
-impl<'r> Responder<'r> for AuthError {
+impl<'r> Responder<'r> for Error {
     fn respond_to(self, req: &Request) -> response::Result<'r> {
         let status = match self.0 {
-            Error::GetDbError => Status::InternalServerError,
-            Error::NoResultError => Status::NotFound,
-            Error::DieselError => Status::InternalServerError,
-            Error::PasswordHashError => Status::InternalServerError,
-            Error::InvalidPasswordError => Status::BadRequest,
-            Error::InvalidUsernameError => Status::BadRequest,
-            Error::PasswordMatchError => Status::Unauthorized,
-            Error::InvalidPermissionNameError => Status::BadRequest,
-            Error::PermissionError => Status::Unauthorized,
-            Error::InvalidAuthError => Status::Unauthorized,
-            Error::UserNotVerifiedError => Status::Unauthorized,
-            Error::InvalidWebtokenError => Status::Unauthorized,
-            Error::ExpiredWebtokenError => Status::Unauthorized,
-            Error::ParseError => Status::InternalServerError,
-            Error::IOError => Status::InternalServerError,
+            BackendError::BcryptError(ref err) => Error::bcrypt_status(err),
+            BackendError::DbError(ref err) => Error::db_status(err),
+            BackendError::InputError(_) => Status::BadRequest,
+            BackendError::JWTError(ref err) => Error::jwt_status(err),
+            BackendError::DbTimeout => Status::InternalServerError,
+            BackendError::IOError => Status::InternalServerError,
+            BackendError::ParseError => Status::InternalServerError,
+            BackendError::PasswordMatchError => Status::Unauthorized,
+            BackendError::PermissionError => Status::Unauthorized,
+            BackendError::UserNotVerifiedError => Status::Unauthorized,
         };
 
         let json_response = Json(ErrorResponse::from_error(self.0)).respond_to(req)?;
