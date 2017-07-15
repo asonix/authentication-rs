@@ -17,6 +17,7 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use std::error::Error as StdError;
 use authentication_backend::Error;
 
 #[derive(Serialize)]
@@ -26,6 +27,6 @@ pub struct ErrorResponse {
 
 impl ErrorResponse {
     pub fn from_error(error: Error) -> Self {
-        ErrorResponse { message: error.to_string() }
+        ErrorResponse { message: error.description().to_owned() }
     }
 }
