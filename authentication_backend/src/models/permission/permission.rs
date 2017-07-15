@@ -61,7 +61,7 @@ impl Permission {
 mod tests {
     use super::*;
     use test_helper::generate_string;
-    use super::test_helper::teardown;
+    use models::permission::test_helper::teardown;
 
     #[test]
     fn create_creates_permission() {

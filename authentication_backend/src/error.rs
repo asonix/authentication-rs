@@ -21,11 +21,14 @@ use std::io;
 use std::result;
 use r2d2::GetTimeout;
 use std::num::ParseIntError;
-use bcrypt::BcryptError;
-use diesel::result::Error as DbError;
 use std::error::Error as StdError;
-use jwt::errors::Error as JWTError;
 use std::fmt;
+
+pub use bcrypt::BcryptError;
+pub use diesel::result::Error as DbError;
+pub use diesel::result::DatabaseErrorKind as DbErrorKind;
+pub use jwt::errors::Error as JWTError;
+pub use jwt::errors::ErrorKind as JWTErrorKind;
 
 pub type Result<T> = result::Result<T, Error>;
 

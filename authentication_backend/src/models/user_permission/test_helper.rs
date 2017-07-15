@@ -26,7 +26,7 @@ use models::user::test_helper::with_user;
 use models::permission::Permission;
 use models::permission::test_helper::with_permission;
 use models::user_permission::UserPermission;
-use models::user_permission::new_user_permission::NewUserPermission;
+use models::user_permission::NewUserPermission;
 
 pub fn with_user_permission<T>(test: T) -> ()
 where
@@ -38,7 +38,7 @@ where
                 "Failed to save NewUserPermission",
             );
 
-            let up_id = user_permission.id;
+            let up_id = user_permission.id();
             let result = panic::catch_unwind(|| test(user, permission, user_permission));
             teardown(up_id);
             result.unwrap();

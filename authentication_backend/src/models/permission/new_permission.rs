@@ -85,7 +85,7 @@ mod tests {
         assert!(result.is_ok(), "Failed to save new_permission");
 
         if let Ok(permission) = result {
-            teardown(permission.id);
+            teardown(permission.id());
         }
     }
 
@@ -100,7 +100,7 @@ mod tests {
         assert!(!permission_two.is_ok(), "Created duplicate permission");
 
         if let Ok(permission) = permission_one {
-            teardown(permission.id);
+            teardown(permission.id());
         }
     }
 }

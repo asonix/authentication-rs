@@ -36,6 +36,18 @@ pub struct UserPermission {
 }
 
 impl UserPermission {
+    pub fn id(&self) -> i32 {
+        self.id
+    }
+
+    pub fn user_id(&self) -> i32 {
+        self.user_id
+    }
+
+    pub fn permission_id(&self) -> i32 {
+        self.permission_id
+    }
+
     pub fn create(user: &User, permission: &Permission) -> Result<Self> {
         let new_user_permission = NewUserPermission::new(user, permission);
 

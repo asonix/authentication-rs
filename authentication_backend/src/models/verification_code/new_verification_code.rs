@@ -72,7 +72,7 @@ mod tests {
     use super::*;
     use test_helper::*;
     use models::user::test_helper::{with_user, teardown};
-    use models::user::new_user::NewUser;
+    use models::user::NewUser;
     use authenticatable::Authenticatable;
 
     #[test]
