@@ -17,17 +17,17 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use authentication_backend::models::permission::Permission;
-use authentication_backend::models::user::User;
-use authentication_backend::webtoken::Webtoken;
-use authentication_backend::error::Error::PermissionError;
-use error::Error;
+use authentication_backend::Permission;
+use authentication_backend::User;
+use authentication_backend::Webtoken;
+use authentication_backend::Error::PermissionError;
+use error::AuthError;
 use auth_response::AuthResponse;
 use input_types::{UserToken, UserTokenWithPassword, CreateUser, RenewalToken, GivePermission,
                   CreatePermission};
 use rocket_contrib::Json;
 
-type Response = Result<AuthResponse, Error>;
+type Response = Result<AuthResponse, AuthError>;
 
 #[post("/sign-up", format = "application/json", data = "<create_user>")]
 pub fn sign_up(create_user: Json<CreateUser>) -> Response {
@@ -84,7 +84,7 @@ pub fn create_permission(new_permission: Json<CreatePermission>) -> Response {
 
         Ok(AuthResponse::new("Permission created", permission))
     } else {
-        Err(Error::new(PermissionError))
+        Err(AuthError::new(PermissionError))
     }
 }
 

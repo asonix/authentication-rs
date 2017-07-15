@@ -17,7 +17,7 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use authentication_backend::authenticatable::{Authenticatable, ToAuth};
+use authentication_backend::{Authenticatable, ToAuth};
 
 #[derive(Deserialize)]
 pub struct CreatePermission {

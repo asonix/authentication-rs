@@ -22,50 +22,50 @@ use rocket::http::Status;
 use rocket::request::Request;
 use rocket::Response;
 use rocket_contrib::Json;
-use authentication_backend::error;
+use authentication_backend::Error;
 
 #[derive(Debug)]
-pub struct Error(error::Error);
+pub struct AuthError(Error);
 
-impl Error {
-    pub fn new(err: error::Error) -> Self {
-        Error(err)
+impl AuthError {
+    pub fn new(err: Error) -> Self {
+        AuthError(err)
     }
 }
 
-impl From<error::Error> for Error {
-    fn from(e: error::Error) -> Error {
-        Error(e)
+impl From<Error> for AuthError {
+    fn from(e: Error) -> AuthError {
+        AuthError(e)
     }
 }
 
-impl ToString for Error {
+impl ToString for AuthError {
     fn to_string(&self) -> String {
         self.0.to_string()
     }
 }
 
-impl<'r> Responder<'r> for Error {
+impl<'r> Responder<'r> for AuthError {
     fn respond_to(self, req: &Request) -> response::Result<'r> {
         let status = match self.0 {
-            error::Error::GetDbError => Status::InternalServerError,
-            error::Error::NoResultError => Status::NotFound,
-            error::Error::DieselError => Status::InternalServerError,
-            error::Error::PasswordHashError => Status::InternalServerError,
-            error::Error::InvalidPasswordError => Status::BadRequest,
-            error::Error::InvalidUsernameError => Status::BadRequest,
-            error::Error::PasswordMatchError => Status::Unauthorized,
-            error::Error::InvalidPermissionNameError => Status::BadRequest,
-            error::Error::PermissionError => Status::Unauthorized,
-            error::Error::InvalidAuthError => Status::Unauthorized,
-            error::Error::UserNotVerifiedError => Status::Unauthorized,
-            error::Error::InvalidWebtokenError => Status::Unauthorized,
-            error::Error::ExpiredWebtokenError => Status::Unauthorized,
-            error::Error::ParseError => Status::InternalServerError,
-            error::Error::IOError => Status::InternalServerError,
+            Error::GetDbError => Status::InternalServerError,
+            Error::NoResultError => Status::NotFound,
+            Error::DieselError => Status::InternalServerError,
+            Error::PasswordHashError => Status::InternalServerError,
+            Error::InvalidPasswordError => Status::BadRequest,
+            Error::InvalidUsernameError => Status::BadRequest,
+            Error::PasswordMatchError => Status::Unauthorized,
+            Error::InvalidPermissionNameError => Status::BadRequest,
+            Error::PermissionError => Status::Unauthorized,
+            Error::InvalidAuthError => Status::Unauthorized,
+            Error::UserNotVerifiedError => Status::Unauthorized,
+            Error::InvalidWebtokenError => Status::Unauthorized,
+            Error::ExpiredWebtokenError => Status::Unauthorized,
+            Error::ParseError => Status::InternalServerError,
+            Error::IOError => Status::InternalServerError,
         };
 
-        let json_response = Json(ErrorResponse::from_error(self)).respond_to(req)?;
+        let json_response = Json(ErrorResponse::from_error(self.0)).respond_to(req)?;
 
         let response = Response::build()
             .status(status)

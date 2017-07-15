@@ -18,9 +18,9 @@
  */
 
 use std::convert::From;
-use authentication_backend::webtoken;
-use authentication_backend::models::user::User;
-use authentication_backend::models::permission::Permission;
+use authentication_backend::Webtoken;
+use authentication_backend::User;
+use authentication_backend::Permission;
 
 #[derive(Serialize)]
 #[serde(tag = "type")]
@@ -53,8 +53,8 @@ impl<T: Into<ResponseBody>> From<Option<T>> for ResponseBody {
     }
 }
 
-impl From<webtoken::Webtoken> for ResponseBody {
-    fn from(webtoken: webtoken::Webtoken) -> Self {
+impl From<Webtoken> for ResponseBody {
+    fn from(webtoken: Webtoken) -> Self {
         ResponseBody::Webtoken {
             user_token: webtoken.user_token().to_owned(),
             renewal_token: webtoken.renewal_token().to_owned(),
@@ -79,4 +79,3 @@ impl ResponseBody {
         }
     }
 }
-
