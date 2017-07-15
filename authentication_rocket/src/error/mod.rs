@@ -23,6 +23,9 @@ use rocket::request::Request;
 use rocket::Response;
 use rocket_contrib::Json;
 use authentication_backend::Error;
+use self::error_response::ErrorResponse;
+
+mod error_response;
 
 #[derive(Debug)]
 pub struct AuthError(Error);
@@ -73,16 +76,5 @@ impl<'r> Responder<'r> for AuthError {
             .finalize();
 
         Ok(response)
-    }
-}
-
-#[derive(Serialize)]
-pub struct ErrorResponse {
-    message: String,
-}
-
-impl ErrorResponse {
-    fn from_error(error: Error) -> Self {
-        ErrorResponse { message: error.to_string() }
     }
 }
