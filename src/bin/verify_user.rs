@@ -2,8 +2,8 @@ extern crate authentication_backend;
 
 use std::env;
 use authentication_backend::CONFIG;
-use authentication_backend::models::user::User;
-use authentication_backend::models::verification_code::VerificationCode;
+use authentication_backend::User;
+use authentication_backend::VerificationCode;
 
 fn main() {
     let mut args = env::args();

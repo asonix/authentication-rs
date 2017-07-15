@@ -1,9 +1,9 @@
 extern crate authentication_backend;
 
 use std::env;
-use authentication_backend::models::user::User;
-use authentication_backend::models::permission::Permission;
-use authentication_backend::models::user_permission::UserPermission;
+use authentication_backend::User;
+use authentication_backend::Permission;
+use authentication_backend::UserPermission;
 
 fn main() {
     let mut args = env::args();
