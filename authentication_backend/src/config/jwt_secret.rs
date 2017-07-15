@@ -35,8 +35,8 @@ impl JWTSecret {
         dotenv().ok();
 
         JWTSecret {
-            private_key: JWTSecret::read_file(env!("JWT_PRIVATE_KEY")),
-            public_key: JWTSecret::read_file(env!("JWT_PUBLIC_KEY")),
+            private_key: JWTSecret::read_file(dotenv!("JWT_PRIVATE_KEY")),
+            public_key: JWTSecret::read_file(dotenv!("JWT_PUBLIC_KEY")),
         }
     }
 

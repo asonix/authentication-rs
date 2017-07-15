@@ -42,12 +42,20 @@ extern crate chrono;
 
 use config::Config;
 
-pub mod schema;
-pub mod models;
-pub mod error;
-pub mod config;
-pub mod webtoken;
-pub mod authenticatable;
+mod config;
+mod schema;
+mod models;
+mod error;
+mod webtoken;
+mod authenticatable;
+
+pub use models::user::User;
+pub use models::permission::Permission;
+pub use models::user_permission::UserPermission;
+pub use models::verification_code::VerificationCode;
+pub use error::Error;
+pub use webtoken::Webtoken;
+pub use authenticatable::{Authenticatable, ToAuth};
 
 #[cfg(test)]
 pub mod test_helper;
