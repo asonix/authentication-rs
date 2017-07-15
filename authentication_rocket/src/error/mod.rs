@@ -32,10 +32,6 @@ mod error_response;
 pub struct Error(BackendError);
 
 impl Error {
-    pub fn new(err: BackendError) -> Self {
-        Error(err)
-    }
-
     fn bcrypt_status(_err: &BcryptError) -> Status {
         Status::InternalServerError
     }

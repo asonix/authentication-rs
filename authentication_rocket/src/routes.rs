@@ -17,10 +17,7 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use authentication_backend::Permission;
-use authentication_backend::User;
-use authentication_backend::Webtoken;
-use authentication_backend::Error::PermissionError;
+use authentication_backend::{Admin, User, Webtoken};
 use error::Error;
 use auth_response::AuthResponse;
 use input_types::{UserToken, UserTokenWithPassword, CreateUser, RenewalToken, GivePermission,
@@ -78,26 +75,21 @@ pub fn delete(token_with_password: Json<UserTokenWithPassword>) -> Response {
 #[post("/new-permission", format = "application/json", data = "<new_permission>")]
 pub fn create_permission(new_permission: Json<CreatePermission>) -> Response {
     let user = User::authenticate(&new_permission.0)?;
+    let admin = Admin::from_user(&user)?;
 
-    if user.has_permission("admin") {
-        let permission = Permission::create(new_permission.0.permission())?;
+    let permission = admin.create_permission(new_permission.0.permission())?;
 
-        Ok(AuthResponse::new("Permission created", permission))
-    } else {
-        Err(Error::new(PermissionError))
-    }
+    Ok(AuthResponse::new("Permission created", permission))
 }
 
-#[post("/give-permission", format = "application/json", data = "<give_permission>")]
-pub fn give_permission(give_permission: Json<GivePermission>) -> Response {
-    let authorizing_user = User::authenticate(&give_permission.0)?;
+#[post("/give-permission", format = "application/json", data = "<payload>")]
+pub fn give_permission(payload: Json<GivePermission>) -> Response {
+    let user = User::authenticate(&payload.0)?;
+    let admin = Admin::from_user(&user)?;
 
-    let target_user = User::find_by_name(&give_permission.0.target_user())?;
+    let target_user = User::find_by_name(&payload.0.target_user())?;
 
-    target_user.give_permission(
-        &authorizing_user,
-        &give_permission.0.permission(),
-    )?;
+    admin.give_permission(&target_user, &payload.0.permission())?;
 
     Ok(AuthResponse::empty("Permission granted"))
 }
