@@ -131,7 +131,7 @@ mod tests {
             let user: Result<User> = new_user.save();
 
             assert!(user.is_ok(), "Failed to save NewUser");
-            user::test_helper::teardown(UserTrait::id(user.unwrap()));
+            user::test_helper::teardown(UserTrait::id(&user.unwrap()));
         });
     }
 
@@ -144,12 +144,12 @@ mod tests {
             let user = new_user.save().expect("Failed to save User");
 
             let vc = verification_codes
-                .filter(user_id.eq(UserTrait::id(user)))
+                .filter(user_id.eq(UserTrait::id(&user)))
                 .first::<VerificationCode>(CONFIG.db().unwrap().conn());
 
             assert!(vc.is_ok(), "Failed to create Verification Code for User");
 
-            user::test_helper::teardown(UserTrait::id(user));
+            user::test_helper::teardown(UserTrait::id(&user));
         });
     }
 
@@ -164,7 +164,7 @@ mod tests {
 
             let user = result.unwrap();
 
-            user::test_helper::teardown(UserTrait::id(user));
+            user::test_helper::teardown(UserTrait::id(&user));
         });
     }
 }

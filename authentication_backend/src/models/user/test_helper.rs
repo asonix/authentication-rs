@@ -23,7 +23,7 @@ use CONFIG;
 use std::panic;
 use test_helper::*;
 use error::Result;
-use super::{User, NewUser};
+use super::{UserTrait, User, NewUser};
 use authenticatable::Authenticatable;
 
 pub fn teardown(u_id: i32) -> () {
@@ -49,7 +49,7 @@ where
             "Failed to create User for with_user",
         );
 
-        let u_id = user.id();
+        let u_id = UserTrait::id(&user);
         let result = panic::catch_unwind(|| test(user));
         teardown(u_id);
         result.unwrap();

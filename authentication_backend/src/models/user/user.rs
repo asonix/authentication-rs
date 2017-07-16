@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn find_by_id_finds_user() {
         with_user(|user| {
-            let result = User::find_by_id(user.id());
+            let result = User::find_by_id(UserTrait::id(&user));
 
             assert!(result.is_ok(), "Failed to find user");
 
@@ -240,7 +240,7 @@ mod tests {
         let result = User::create(&auth);
 
         assert!(result.is_ok(), "Failed to create user");
-        teardown(result.unwrap().id());
+        teardown(UserTrait::id(&result.unwrap()));
     }
 
     #[test]
@@ -293,7 +293,15 @@ mod tests {
     fn authenticate_gets_user_from_valid_webtoken() {
         with_user(|mut user| {
             user.verify(&CONFIG.db().unwrap());
-            let webtoken = user.create_webtoken().unwrap();
+
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: test_password(),
+            };
+
+            let auth = User::authenticate_session(&auth).expect("Failed to authenticate User");
+
+            let webtoken = auth.create_webtoken().unwrap();
             let auth = Authenticatable::UserToken { user_token: webtoken.user_token() };
 
             let result = User::authenticate(&auth);
@@ -325,7 +333,14 @@ mod tests {
         with_user(|mut user| {
             assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
 
-            let webtoken = user.create_webtoken().unwrap();
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: test_password(),
+            };
+
+            let auth = User::authenticate_session(&auth).expect("Failed to authenticate User");
+
+            let webtoken = auth.create_webtoken().unwrap();
 
             let auth = Authenticatable::UserTokenAndPass {
                 user_token: webtoken.user_token(),
@@ -346,7 +361,14 @@ mod tests {
         with_user(|mut user| {
             assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
 
-            let webtoken = user.create_webtoken().unwrap();
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: test_password(),
+            };
+
+            let auth = User::authenticate_session(&auth).expect("Failed to authenticate User");
+
+            let webtoken = auth.create_webtoken().unwrap();
 
             let auth = Authenticatable::UserTokenAndPass {
                 user_token: webtoken.user_token(),

@@ -73,12 +73,13 @@ impl VerificationCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use models::user::UserTrait;
     use models::user::test_helper::with_user;
 
     #[test]
     fn delete_by_user_id_deletes_verification_code() {
         with_user(|user| {
-            let result = VerificationCode::delete_by_user_id(user.id());
+            let result = VerificationCode::delete_by_user_id(UserTrait::id(&user));
 
             assert!(result.is_ok(), "Failed to delete verification_code");
         });

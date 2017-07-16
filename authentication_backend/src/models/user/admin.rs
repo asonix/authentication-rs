@@ -124,7 +124,7 @@ mod tests {
                 "Failed to make test admin user_permission",
             );
 
-            let admin = Admin::from_user(user).expect(
+            let admin = Admin::from_user(&user).expect(
                 "Failed to get Admin from User with 'admin' permission",
             );
 
