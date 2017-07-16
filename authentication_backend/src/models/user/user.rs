@@ -22,12 +22,10 @@ use schema::users;
 use config::db::DB;
 use CONFIG;
 use authenticatable::{Authenticatable, ToAuth};
-use webtoken::Webtoken;
-use bcrypt::{DEFAULT_COST, hash, verify, BcryptResult};
-use error::{Error, Result};
+use bcrypt::verify;
+use error::{Error, InputErrorKind, Result};
 use diesel::prelude::*;
-use super::new_user::NewUser;
-use super::helpers::{validate_username, validate_password};
+use super::{UserTrait, NewUser, Authenticated, AuthenticatedThisSession};
 
 #[derive(Debug, PartialEq, Queryable, Identifiable, AsChangeset, Associations)]
 pub struct User {
@@ -37,26 +35,60 @@ pub struct User {
     verified: bool,
 }
 
+impl UserTrait for User {
+    fn id(&self) -> i32 {
+        self.id
+    }
+
+    fn username(&self) -> &str {
+        &self.username
+    }
+
+    fn is_verified(&self) -> bool {
+        self.verified
+    }
+}
+
 impl User {
     pub fn create<T>(auth: &T) -> Result<Self>
     where
         T: ToAuth,
     {
-        let new_user = NewUser::new(&auth.to_auth())?;
+        let auth = auth.to_auth();
+
+        let new_user = NewUser::new(&auth)?;
 
         new_user.save()
     }
 
-    pub fn id(&self) -> i32 {
-        self.id
+    pub fn authenticate<T>(auth: &T) -> Result<Authenticated>
+    where
+        T: ToAuth,
+    {
+        match auth.to_auth() {
+            Authenticatable::UserToken { user_token: t } => Authenticated::from_webtoken(t),
+            _ => {
+                let authenticate_session = User::authenticate_session(auth)?;
+                Ok(authenticate_session.into())
+            }
+        }
     }
 
-    pub fn username(&self) -> &str {
-        &self.username
-    }
-
-    pub fn is_verified(&self) -> bool {
-        self.verified
+    pub fn authenticate_session<T>(auth: &T) -> Result<AuthenticatedThisSession>
+    where
+        T: ToAuth,
+    {
+        match auth.to_auth() {
+            Authenticatable::UserAndPass {
+                username: u,
+                password: p,
+            } => AuthenticatedThisSession::from_username_and_password(u, p),
+            Authenticatable::UserTokenAndPass {
+                user_token: t,
+                password: p,
+            } => AuthenticatedThisSession::from_webtoken_and_password(t, p),
+            _ => Err(Error::InputError(InputErrorKind::Authenticatable)),
+        }
     }
 
     pub fn find_by_name(u_name: &str) -> Result<Self> {
@@ -78,8 +110,7 @@ impl User {
     }
 
     pub fn has_permission(&self, permission: &str) -> bool {
-        use models::user_permission::UserPermission;
-        use models::permission::Permission;
+        use models::{UserPermission, Permission};
 
         let permission = match Permission::find(permission) {
             Ok(permission) => permission,
@@ -127,140 +158,10 @@ impl User {
         }
     }
 
-    fn verify_password(&self, password: &str) -> BcryptResult<bool> {
-        verify(password, &self.password)
-    }
+    pub fn verify_password(&self, password: &str) -> Result<bool> {
+        let verified = verify(password, &self.password)?;
 
-    pub fn update_password(&mut self, old_pass: &str, new_pass: &str) -> Result<()> {
-        use schema::users::dsl::*;
-
-        let new_pass = validate_password(new_pass)?;
-
-        if self.verify_password(old_pass)? {
-            let hash = hash(new_pass, DEFAULT_COST)?;
-
-            let db = CONFIG.db()?;
-
-            let _ = diesel::update(users.filter(id.eq(self.id)))
-                .set(password.eq(&hash))
-                .execute(db.conn())?;
-
-            self.password = hash;
-            Ok(())
-        } else {
-            Err(Error::PasswordMatchError)
-        }
-    }
-
-    pub fn update_username(&mut self, new_username: &str, password: &str) -> Result<()> {
-        use schema::users::dsl::{users, id, username};
-
-        let new_username = validate_username(new_username)?;
-
-        if self.verify_password(password)? {
-            let db = CONFIG.db()?;
-
-            let _ = diesel::update(users.filter(id.eq(self.id)))
-                .set(username.eq(new_username))
-                .execute(db.conn())?;
-
-            self.username = new_username.to_string();
-            Ok(())
-        } else {
-            Err(Error::PasswordMatchError)
-        }
-    }
-
-    pub fn create_webtoken(&self) -> Result<Webtoken> {
-        if !self.verified {
-            return Err(Error::UserNotVerifiedError);
-        }
-
-        let token = Webtoken::create(self.id, &self.username)?;
-
-        Ok(token)
-    }
-
-    pub fn authenticate<T>(auth: &T) -> Result<Self>
-    where
-        T: ToAuth,
-    {
-        match auth.to_auth() {
-            Authenticatable::UserAndPass {
-                username: u,
-                password: p,
-            } => User::from_username_and_password(u, p),
-            Authenticatable::UserToken { user_token: t } => User::from_webtoken(t),
-            Authenticatable::UserTokenAndPass {
-                user_token: t,
-                password: p,
-            } => User::from_webtoken_and_password(t, p),
-        }
-    }
-
-    fn from_webtoken(webtoken: &str) -> Result<Self> {
-        use schema::users::dsl::*;
-
-        let db = CONFIG.db()?;
-
-        let (user_id, _) = Webtoken::authenticate(webtoken)?;
-
-        let user = users
-            .filter(verified.eq(true))
-            .filter(id.eq(user_id))
-            .first::<Self>(db.conn())?;
-
-        Ok(user)
-    }
-
-    fn from_webtoken_and_password(webtoken: &str, password: &str) -> Result<Self> {
-        let user = User::from_webtoken(webtoken)?;
-
-        if user.verify_password(password)? {
-            Ok(user)
-        } else {
-            Err(Error::PasswordMatchError)
-        }
-    }
-
-    fn from_username_and_password(uname: &str, pword: &str) -> Result<Self> {
-        use schema::users::dsl::*;
-
-        let db = CONFIG.db()?;
-
-        let user: User = users.filter(username.eq(uname)).first(db.conn())?;
-
-        if user.verify_password(pword)? {
-            Ok(user)
-        } else {
-            Err(Error::PasswordMatchError)
-        }
-    }
-
-    pub fn delete<T>(auth: &T) -> Result<()>
-    where
-        T: ToAuth,
-    {
-        use schema::users::dsl::*;
-
-        let user = match auth.to_auth() {
-            Authenticatable::UserTokenAndPass {
-                user_token: t,
-                password: p,
-            } => User::from_webtoken_and_password(t, p)?,
-            Authenticatable::UserAndPass {
-                username: u,
-                password: p,
-            } => User::from_username_and_password(u, p)?,
-            _ => return Err(Error::PermissionError),
-        };
-
-        let db = CONFIG.db()?;
-
-        diesel::delete(users.filter(username.eq(user.username)))
-            .execute(db.conn())?;
-
-        Ok(())
+        Ok(verified)
     }
 }
 
@@ -343,60 +244,6 @@ mod tests {
     }
 
     #[test]
-    fn update_password_updates_password() {
-        with_user(|mut user| {
-            let result = user.update_password(test_password(), "P455w0rd$.");
-
-            assert!(result.is_ok(), "Failed to update password");
-        });
-    }
-
-    #[test]
-    fn update_password_fails_with_bad_credentials() {
-        with_user(|mut user| {
-            let result = user.update_password("not the password", test_password());
-
-            assert!(!result.is_ok(), "Updated password with bad credentials");
-        });
-    }
-
-    #[test]
-    fn update_password_fails_with_weak_password() {
-        with_user(|mut user| {
-            let result = user.update_password(test_password(), "asdfasdfasdf");
-
-            assert!(!result.is_ok(), "Allowed update to weak password");
-        });
-    }
-
-    #[test]
-    fn update_username_updates_username() {
-        with_user(|mut user| {
-            let result = user.update_username("some_new_username", test_password());
-
-            assert!(result.is_ok(), "Failed to update username");
-        });
-    }
-
-    #[test]
-    fn update_username_fails_with_empty_username() {
-        with_user(|mut user| {
-            let result = user.update_username("", test_password());
-
-            assert!(!result.is_ok(), "Updated username to empty string");
-        });
-    }
-
-    #[test]
-    fn update_username_fails_with_bad_password() {
-        with_user(|mut user| {
-            let result = user.update_username("new_username", "not the password");
-
-            assert!(!result.is_ok(), "Updated username with bad credentials");
-        });
-    }
-
-    #[test]
     fn verify_with_code_verifies_user() {
         with_user(|user| {
             let vc = verification_codes
@@ -443,26 +290,6 @@ mod tests {
     }
 
     #[test]
-    fn create_webtoken_creates_webtoken() {
-        with_user(|mut user| {
-            user.verify(&CONFIG.db().unwrap());
-
-            let result = user.create_webtoken();
-
-            assert!(result.is_ok(), "Failed to create webtoken");
-        });
-    }
-
-    #[test]
-    fn unverified_users_cant_create_webtoken() {
-        with_user(|user| {
-            let result = user.create_webtoken();
-
-            assert!(!result.is_ok(), "Unverified User created webtoken");
-        });
-    }
-
-    #[test]
     fn authenticate_gets_user_from_valid_webtoken() {
         with_user(|mut user| {
             user.verify(&CONFIG.db().unwrap());
@@ -476,7 +303,7 @@ mod tests {
             let user_2 = result.unwrap();
             assert_eq!(
                 user.id,
-                user_2.id,
+                user_2.id(),
                 "Returned user differs from expected user"
             );
         });
@@ -574,44 +401,6 @@ mod tests {
             let result = User::authenticate(&auth);
 
             assert!(result.is_ok(), "Failed to authenticate user");
-        });
-    }
-
-    #[test]
-    fn delete_deletes_existing_user() {
-        with_user(|user| {
-            let auth = Authenticatable::UserAndPass {
-                username: user.username(),
-                password: test_password(),
-            };
-
-            let result = User::delete(&auth);
-
-            assert!(result.is_ok(), "Failed to delete existing user");
-        });
-    }
-
-    #[test]
-    fn delete_deletes_associated_verification_code() {
-        with_user(|user| {
-            let vc = verification_codes
-                .filter(user_id.eq(user.id))
-                .first::<VerificationCode>(CONFIG.db().unwrap().conn());
-
-            assert!(vc.is_ok(), "Could not get verification_code for user");
-
-            let auth = Authenticatable::UserAndPass {
-                username: &user.username(),
-                password: test_password(),
-            };
-
-            let _ = User::delete(&auth);
-
-            let vc = verification_codes
-                .filter(user_id.eq(user.id))
-                .first::<VerificationCode>(CONFIG.db().unwrap().conn());
-
-            assert!(!vc.is_ok(), "Verification code still exists after delete");
         });
     }
 }

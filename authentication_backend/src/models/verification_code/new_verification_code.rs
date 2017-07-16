@@ -23,6 +23,7 @@ use error::Result;
 use CONFIG;
 use schema::verification_codes;
 use models::{User, VerificationCode};
+use models::user::UserTrait;
 
 #[derive(Insertable)]
 #[table_name = "verification_codes"]
@@ -39,7 +40,7 @@ impl NewVerificationCode {
 
         let user: User = users.filter(username.eq(uname)).first::<User>(db.conn())?;
 
-        Self::new_by_id(user.id())
+        Self::new_by_id(UserTrait::id(&user))
     }
 
     pub fn new_by_id(user_id: i32) -> Result<Self> {
@@ -120,12 +121,12 @@ mod tests {
             .get_result(CONFIG.db().unwrap().conn())
             .unwrap();
 
-        let new_verification_code = NewVerificationCode::new_by_id(user.id()).unwrap();
+        let new_verification_code = NewVerificationCode::new_by_id(UserTrait::id(&user)).unwrap();
 
         let result = new_verification_code.save();
 
         assert!(result.is_ok(), "Failed to save verification_code");
-        teardown(user.id());
+        teardown(UserTrait::id(&user));
     }
 
     #[test]

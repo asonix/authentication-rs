@@ -17,28 +17,38 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use CONFIG;
 use error::{Error, Result};
-use models::{User, UserPermission, Permission};
+use models::{User, UserPermission, Permission, VerificationCode};
+use models::user::UserTrait;
 
 pub struct Admin<'a> {
     id: i32,
     username: &'a str,
+    verified: bool,
 }
 
-impl<'a> Admin<'a> {
-    pub fn id(&self) -> i32 {
+impl<'a> UserTrait for Admin<'a> {
+    fn id(&self) -> i32 {
         self.id
     }
 
-    pub fn username(&self) -> &'a str {
+    fn username(&self) -> &str {
         self.username
     }
 
+    fn is_verified(&self) -> bool {
+        self.verified
+    }
+}
+
+impl<'a> Admin<'a> {
     pub fn from_user(user: &User) -> Result<Admin> {
         if user.has_permission("admin") {
             Ok(Admin {
-                id: user.id(),
+                id: UserTrait::id(user),
                 username: user.username(),
+                verified: user.is_verified(),
             })
         } else {
             Err(Error::PermissionError)
@@ -53,8 +63,46 @@ impl<'a> Admin<'a> {
         Ok(())
     }
 
+    pub fn revoke_permission(&self, target: &User, permission: &str) -> Result<()> {
+        let permission = Permission::find(permission)?;
+
+        UserPermission::delete(target, &permission)
+    }
+
     pub fn create_permission(&self, permission: &str) -> Result<Permission> {
         Permission::create(permission)
+    }
+
+    pub fn delete_permission(&self, permission: &str) -> Result<()> {
+        Permission::delete(permission)
+    }
+
+    pub fn verify_user(&self, username: &str) -> Result<()> {
+        let mut user = User::find_by_name(username)?;
+
+        let db = CONFIG.db()?;
+
+        if !user.verify(&db) {
+            return Err(Error::UserNotVerifiedError);
+        }
+
+        let _ = VerificationCode::delete_by_user_id(user.id())?;
+
+        Ok(())
+    }
+
+    pub fn delete_user(&self, uname: &str) -> Result<()> {
+        use diesel;
+        use diesel::prelude::*;
+        use schema::users::dsl::*;
+
+        let db = CONFIG.db()?;
+
+        diesel::delete(users.filter(username.eq(uname))).execute(
+            db.conn(),
+        )?;
+
+        Ok(())
     }
 }
 

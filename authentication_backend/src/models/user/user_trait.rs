@@ -17,20 +17,8 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod user_trait;
-mod user;
-mod admin;
-mod authenticated;
-mod authenticated_this_session;
-mod new_user;
-mod helpers;
-
-#[cfg(test)]
-pub mod test_helper;
-
-pub use self::user_trait::UserTrait;
-pub use self::user::User;
-pub use self::admin::Admin;
-pub use self::authenticated::Authenticated;
-pub use self::authenticated_this_session::AuthenticatedThisSession;
-pub use self::new_user::NewUser;
+pub trait UserTrait {
+    fn id(&self) -> i32;
+    fn username(&self) -> &str;
+    fn is_verified(&self) -> bool;
+}

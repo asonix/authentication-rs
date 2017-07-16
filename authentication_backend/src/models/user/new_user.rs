@@ -21,7 +21,7 @@ use diesel;
 use diesel::prelude::*;
 use bcrypt::{DEFAULT_COST, hash};
 use CONFIG;
-use super::User;
+use super::{UserTrait, User};
 use schema::users;
 use error::{InputErrorKind, Error, Result};
 use authenticatable::Authenticatable;
@@ -65,7 +65,7 @@ impl NewUser {
             db.conn(),
         )?;
 
-        let verification_code = NewVerificationCode::new_by_id(user.id())?;
+        let verification_code = NewVerificationCode::new_by_id(UserTrait::id(&user))?;
 
         let _ = verification_code.save()?;
 
@@ -131,7 +131,7 @@ mod tests {
             let user: Result<User> = new_user.save();
 
             assert!(user.is_ok(), "Failed to save NewUser");
-            user::test_helper::teardown(user.unwrap().id());
+            user::test_helper::teardown(UserTrait::id(user.unwrap()));
         });
     }
 
@@ -144,12 +144,12 @@ mod tests {
             let user = new_user.save().expect("Failed to save User");
 
             let vc = verification_codes
-                .filter(user_id.eq(user.id()))
+                .filter(user_id.eq(UserTrait::id(user)))
                 .first::<VerificationCode>(CONFIG.db().unwrap().conn());
 
             assert!(vc.is_ok(), "Failed to create Verification Code for User");
 
-            user::test_helper::teardown(user.id());
+            user::test_helper::teardown(UserTrait::id(user));
         });
     }
 
@@ -164,7 +164,7 @@ mod tests {
 
             let user = result.unwrap();
 
-            user::test_helper::teardown(user.id());
+            user::test_helper::teardown(UserTrait::id(user));
         });
     }
 }

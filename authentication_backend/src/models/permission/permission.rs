@@ -55,6 +55,18 @@ impl Permission {
 
         Ok(permission)
     }
+
+    pub fn delete(permission: &str) -> Result<()> {
+        use diesel::delete;
+        use diesel::prelude::*;
+        use schema::permissions::dsl::*;
+
+        let db = CONFIG.db()?;
+
+        let _ = delete(permissions.filter(name.eq(permission))).execute(db.conn());
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

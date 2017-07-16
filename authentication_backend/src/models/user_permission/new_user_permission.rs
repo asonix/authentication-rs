@@ -23,6 +23,7 @@ use CONFIG;
 use error::Result;
 use schema::user_permissions;
 use models::{User, Permission, UserPermission};
+use models::user::UserTrait;
 
 #[derive(Insertable)]
 #[table_name = "user_permissions"]
@@ -34,7 +35,7 @@ pub struct NewUserPermission {
 impl NewUserPermission {
     pub fn new(user: &User, permission: &Permission) -> Self {
         NewUserPermission {
-            user_id: user.id(),
+            user_id: UserTrait::id(user),
             permission_id: permission.id(),
         }
     }
