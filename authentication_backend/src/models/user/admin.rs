@@ -120,7 +120,9 @@ impl Admin {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use test_helper::*;
     use models::user::test_helper::with_user;
+    use authenticatable::Authenticatable;
 
     #[test]
     fn admin_can_give_permissions_to_non_admins() {
@@ -135,7 +137,14 @@ mod tests {
                 "Failed to make test admin user_permission",
             );
 
-            let admin = Admin::from_user(&user).expect(
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: test_password(),
+            };
+
+            let auth = User::authenticate(&auth).expect("Failed to authenticate");
+
+            let admin = Admin::from_authenticated(auth).expect(
                 "Failed to get Admin from User with 'admin' permission",
             );
 
@@ -160,7 +169,14 @@ mod tests {
                 "Failed to make test admin user_permission",
             );
 
-            let admin = Admin::from_user(&user).expect(
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: test_password(),
+            };
+
+            let auth = User::authenticate(&auth).expect("Failed to authenticate");
+
+            let admin = Admin::from_authenticated(auth).expect(
                 "Failed to get Admin from User with 'admin' permission",
             );
 

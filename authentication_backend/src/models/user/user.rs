@@ -213,13 +213,6 @@ mod tests {
     }
 
     #[test]
-    fn has_permission_verifies_new_user_is_not_admin() {
-        with_user(|user| {
-            assert!(!user.has_permission("admin"), "New user is admin");
-        });
-    }
-
-    #[test]
     fn create_creates_user() {
         let auth = Authenticatable::UserAndPass {
             username: &generate_string(),
