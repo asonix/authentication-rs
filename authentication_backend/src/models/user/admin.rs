@@ -121,14 +121,12 @@ impl Admin {
 mod tests {
     use super::*;
     use test_helper::*;
-    use models::user::test_helper::with_user;
+    use models::user::test_helper::{with_user, with_admin};
+    use models::user_permission::test_helper::with_user_permission;
     use authenticatable::Authenticatable;
 
     #[test]
-    fn admin_can_give_permissions_to_non_admins() {
-        use models::Permission;
-        use models::UserPermission;
-
+    fn from_authenticated_creates_admin() {
         with_user(|user| {
             let admin_permission =
                 Permission::find("admin").expect("Failed to find admin permission");
@@ -144,10 +142,37 @@ mod tests {
 
             let auth = User::authenticate(&auth).expect("Failed to authenticate");
 
-            let admin = Admin::from_authenticated(auth).expect(
-                "Failed to get Admin from User with 'admin' permission",
-            );
+            let admin = Admin::from_authenticated(auth);
 
+            assert!(
+                admin.is_ok(),
+                "Failed to get Admin from user with 'admin' permission"
+            );
+        });
+    }
+
+    #[test]
+    fn from_authenticated_fails_with_bad_user() {
+        with_user(|user| {
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: test_password(),
+            };
+
+            let auth = User::authenticate(&auth).expect("Failed to authenticate");
+
+            let admin = Admin::from_authenticated(auth);
+
+            assert!(
+                !admin.is_ok(),
+                "Created admin from user without 'admin' permission"
+            );
+        });
+    }
+
+    #[test]
+    fn admin_can_give_permissions_to_non_admins() {
+        with_admin(|admin| {
             with_user(|user| {
                 let result = admin.give_permission(&user, "admin");
 
@@ -158,28 +183,7 @@ mod tests {
 
     #[test]
     fn admin_cannot_give_nonexistant_permission() {
-        use models::permission::Permission;
-        use models::user_permission::UserPermission;
-
-        with_user(|user| {
-            let admin_permission =
-                Permission::find("admin").expect("Failed to find admin permission");
-
-            let _ = UserPermission::create(&user, &admin_permission).expect(
-                "Failed to make test admin user_permission",
-            );
-
-            let auth = Authenticatable::UserAndPass {
-                username: user.username(),
-                password: test_password(),
-            };
-
-            let auth = User::authenticate(&auth).expect("Failed to authenticate");
-
-            let admin = Admin::from_authenticated(auth).expect(
-                "Failed to get Admin from User with 'admin' permission",
-            );
-
+        with_admin(|admin| {
             with_user(|user| {
                 let result = admin.give_permission(&user, "this is not a permission");
 
@@ -188,6 +192,37 @@ mod tests {
                     "Admin gave a user a nonexistant permission"
                 );
             });
+        });
+    }
+
+    #[test]
+    fn admin_can_revoke_permissions() {
+        with_admin(|admin| {
+            with_user_permission(|user, permission, _user_permission| {
+                let result = admin.revoke_permission(&user, &permission.name());
+
+                assert!(result.is_ok(), "Failed to revoke permission from user");
+            });
+        });
+    }
+
+    #[test]
+    fn verify_user_verifies_user() {
+        with_admin(|admin| {
+            with_user(|user| {
+                let result = admin.verify_user(user.username());
+
+                assert!(result.is_ok(), "Failed to verify user");
+            });
+        });
+    }
+
+    #[test]
+    fn verify_user_fails_with_bad_user() {
+        with_admin(|admin| {
+            let result = admin.verify_user("this is not a real username");
+
+            assert!(!result.is_ok(), "Verified invalid user");
         });
     }
 }

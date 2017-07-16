@@ -407,4 +407,30 @@ mod tests {
             assert!(result.is_ok(), "Failed to authenticate user");
         });
     }
+
+    #[test]
+    fn verify_password_verifies_password() {
+        with_user(|user| {
+            let result = user.verify_password(test_password());
+
+            assert!(result.is_ok(), "Failed to verify password");
+
+            let result = result.unwrap();
+
+            assert!(result, "Password was incorrect");
+        });
+    }
+
+    #[test]
+    fn verify_password_fails_with_bad_password() {
+        with_user(|user| {
+            let result = user.verify_password("This is not the password");
+
+            assert!(result.is_ok(), "Failed to verify password");
+
+            let result = result.unwrap();
+
+            assert!(!result, "Incorrect password was succesfully matched");
+        });
+    }
 }

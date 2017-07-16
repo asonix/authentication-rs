@@ -23,7 +23,8 @@ use CONFIG;
 use std::panic;
 use test_helper::*;
 use error::Result;
-use super::{UserTrait, User, NewUser};
+use super::{UserTrait, User, NewUser, Admin, Authenticated, AuthenticatedThisSession};
+use models::{Permission, UserPermission};
 use authenticatable::Authenticatable;
 
 pub fn teardown(u_id: i32) -> () {
@@ -53,6 +54,32 @@ where
         let result = panic::catch_unwind(|| test(user));
         teardown(u_id);
         result.unwrap();
+    });
+}
+
+pub fn with_admin<T>(test: T) -> ()
+where
+    T: FnOnce(Admin) -> () + panic::UnwindSafe,
+{
+    with_user(|user| {
+        let admin_permission = Permission::find("admin").expect("Failed to find admin permission");
+
+        let _ = UserPermission::create(&user, &admin_permission).expect(
+            "Failed to make test admin user_permission",
+        );
+
+        let auth = Authenticatable::UserAndPass {
+            username: user.username(),
+            password: test_password(),
+        };
+
+        let auth = User::authenticate(&auth).expect("Failed to authenticate");
+
+        let admin = Admin::from_authenticated(auth).expect(
+            "Failed to get Admin from User with 'admin' permission",
+        );
+
+        panic::catch_unwind(|| test(admin)).unwrap();
     });
 }
 
