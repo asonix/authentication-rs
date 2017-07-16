@@ -20,21 +20,21 @@
 use CONFIG;
 use error::{Error, Result};
 use models::{User, UserPermission, Permission, VerificationCode};
-use models::user::UserTrait;
+use models::user::{UserTrait, Authenticated};
 
-pub struct Admin<'a> {
+pub struct Admin {
     id: i32,
-    username: &'a str,
+    username: String,
     verified: bool,
 }
 
-impl<'a> UserTrait for Admin<'a> {
+impl UserTrait for Admin {
     fn id(&self) -> i32 {
         self.id
     }
 
     fn username(&self) -> &str {
-        self.username
+        &self.username
     }
 
     fn is_verified(&self) -> bool {
@@ -42,13 +42,24 @@ impl<'a> UserTrait for Admin<'a> {
     }
 }
 
-impl<'a> Admin<'a> {
-    pub fn from_user(user: &User) -> Result<Admin> {
-        if user.has_permission("admin") {
+impl Admin {
+    pub fn from_authenticated<T>(auth: T) -> Result<Admin>
+    where
+        T: Into<Authenticated>,
+    {
+        use models::{UserPermission, Permission};
+
+        let permission = Permission::find("admin")?;
+
+        let auth: Authenticated = auth.into();
+
+        let has_permission: bool = UserPermission::has_permission(&auth, &permission);
+
+        if has_permission {
             Ok(Admin {
-                id: UserTrait::id(user),
-                username: user.username(),
-                verified: user.is_verified(),
+                id: UserTrait::id(&auth),
+                username: auth.username().to_owned(),
+                verified: auth.is_verified(),
             })
         } else {
             Err(Error::PermissionError)

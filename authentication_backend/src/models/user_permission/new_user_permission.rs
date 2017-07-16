@@ -33,7 +33,10 @@ pub struct NewUserPermission {
 }
 
 impl NewUserPermission {
-    pub fn new(user: &UserTrait, permission: &Permission) -> Self {
+    pub fn new<T>(user: &T, permission: &Permission) -> Self
+    where
+        T: UserTrait,
+    {
         NewUserPermission {
             user_id: UserTrait::id(user),
             permission_id: permission.id(),

@@ -109,17 +109,6 @@ impl User {
         Ok(user)
     }
 
-    pub fn has_permission(&self, permission: &str) -> bool {
-        use models::{UserPermission, Permission};
-
-        let permission = match Permission::find(permission) {
-            Ok(permission) => permission,
-            _ => return false,
-        };
-
-        UserPermission::has_permission(self, &permission)
-    }
-
     pub fn verify_with_code(vc: &str) -> Result<Self> {
         use schema::verification_codes::dsl::{verification_codes, code, user_id};
         use schema::users::dsl::*;

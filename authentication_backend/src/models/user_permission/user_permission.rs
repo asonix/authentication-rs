@@ -48,13 +48,19 @@ impl UserPermission {
         self.permission_id
     }
 
-    pub fn create(user: &UserTrait, permission: &Permission) -> Result<Self> {
+    pub fn create<T>(user: &T, permission: &Permission) -> Result<Self>
+    where
+        T: UserTrait,
+    {
         let new_user_permission = NewUserPermission::new(user, permission);
 
         new_user_permission.save()
     }
 
-    pub fn has_permission(user: &UserTrait, permission: &Permission) -> bool {
+    pub fn has_permission<T>(user: &T, permission: &Permission) -> bool
+    where
+        T: UserTrait,
+    {
         use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
 
         let db = match CONFIG.db() {
@@ -73,7 +79,10 @@ impl UserPermission {
         }
     }
 
-    pub fn get_permissions(user: &UserTrait) -> Result<Vec<Permission>> {
+    pub fn get_permissions<T>(user: &T) -> Result<Vec<Permission>>
+    where
+        T: UserTrait,
+    {
         use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
         use schema::permissions::dsl::{id, permissions};
 
@@ -109,7 +118,10 @@ impl UserPermission {
         Ok(results.into_iter().map(|(_, user)| user).collect())
     }
 
-    pub fn delete(user: &UserTrait, permission: &Permission) -> Result<()> {
+    pub fn delete<T>(user: &T, permission: &Permission) -> Result<()>
+    where
+        T: UserTrait,
+    {
         use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
 
         let db = CONFIG.db()?;
