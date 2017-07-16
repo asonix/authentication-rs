@@ -18,9 +18,7 @@
  */
 
 use std::convert::From;
-use authentication_backend::Webtoken;
-use authentication_backend::User;
-use authentication_backend::Permission;
+use authentication_backend::{Permission, User, UserTrait, Webtoken};
 
 #[derive(Serialize)]
 #[serde(tag = "type")]

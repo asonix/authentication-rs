@@ -16,7 +16,6 @@ This application accepts data as JSON. It can create, verify, authenticate, and 
  - `GET /verify/<verification_code>`
     - INPUT: **verification_code**
     - Marks **User** as verified and deletes associated **VerificationCode**.
-    - OUTPUT: **user_token** and **renewal_token**
  - `POST /log-in`
     - INPUT: **username** and **password**
     - OUTPUT: **user_token** and **renewal_token**

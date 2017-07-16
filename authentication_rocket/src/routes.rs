@@ -35,7 +35,7 @@ pub fn sign_up(create_user: Json<CreateUser>) -> Response {
 
 #[post("/log-in", format = "application/json", data = "<create_user>")]
 pub fn log_in(create_user: Json<CreateUser>) -> Response {
-    let user = User::authenticate(&create_user.0)?;
+    let user = User::authenticate_session(&create_user.0)?;
 
     let token = user.create_webtoken().ok();
 
@@ -58,16 +58,16 @@ pub fn is_authenticated(token: Json<UserToken>) -> Response {
 
 #[get("/verify/<verification_token>")]
 pub fn verify(verification_token: String) -> Response {
-    let user = User::verify_with_code(&verification_token)?;
+    User::verify_with_code(&verification_token)?;
 
-    let token = user.create_webtoken()?;
-
-    Ok(AuthResponse::new("User verified", token))
+    Ok(AuthResponse::empty("User verified"))
 }
 
 #[post("/delete", format = "application/json", data = "<token_with_password>")]
 pub fn delete(token_with_password: Json<UserTokenWithPassword>) -> Response {
-    User::delete(&token_with_password.0)?;
+    let user = User::authenticate_session(&token_with_password.0)?;
+
+    user.delete()?;
 
     Ok(AuthResponse::empty("Deleted"))
 }
@@ -75,7 +75,7 @@ pub fn delete(token_with_password: Json<UserTokenWithPassword>) -> Response {
 #[post("/new-permission", format = "application/json", data = "<new_permission>")]
 pub fn create_permission(new_permission: Json<CreatePermission>) -> Response {
     let user = User::authenticate(&new_permission.0)?;
-    let admin = Admin::from_user(&user)?;
+    let admin = Admin::from_authenticated(user)?;
 
     let permission = admin.create_permission(new_permission.0.permission())?;
 
@@ -85,7 +85,7 @@ pub fn create_permission(new_permission: Json<CreatePermission>) -> Response {
 #[post("/give-permission", format = "application/json", data = "<payload>")]
 pub fn give_permission(payload: Json<GivePermission>) -> Response {
     let user = User::authenticate(&payload.0)?;
-    let admin = Admin::from_user(&user)?;
+    let admin = Admin::from_authenticated(user)?;
 
     let target_user = User::find_by_name(&payload.0.target_user())?;
 
