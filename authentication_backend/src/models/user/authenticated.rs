@@ -50,14 +50,14 @@ impl Authenticated {
         user.verify_password(password)
     }
 
-    fn fetch_user(&self) -> Result<User> {
-        use schema::users::dsl::*;
+    pub fn verify(&mut self) -> bool {
+        let mut user = match self.fetch_user() {
+            Ok(user) => user,
+            Err(_) => return false,
+        };
 
-        let db = CONFIG.db()?;
-
-        let user = users.filter(id.eq(self.id)).first::<User>(db.conn())?;
-
-        Ok(user)
+        self.verified = user.verify();
+        self.verified
     }
 
     pub fn from_webtoken(webtoken: &str) -> Result<Self> {
@@ -73,6 +73,16 @@ impl Authenticated {
             .first::<User>(db.conn())?;
 
         Ok(Authenticated::from_user(&user))
+    }
+
+    fn fetch_user(&self) -> Result<User> {
+        use schema::users::dsl::*;
+
+        let db = CONFIG.db()?;
+
+        let user = users.filter(id.eq(self.id)).first::<User>(db.conn())?;
+
+        Ok(user)
     }
 
     fn from_user(user: &User) -> Self {

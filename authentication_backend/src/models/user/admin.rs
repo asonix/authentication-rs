@@ -91,9 +91,7 @@ impl Admin {
     pub fn verify_user(&self, username: &str) -> Result<()> {
         let mut user = User::find_by_name(username)?;
 
-        let db = CONFIG.db()?;
-
-        if !user.verify(&db) {
+        if !user.verify() {
             return Err(Error::UserNotVerifiedError);
         }
 

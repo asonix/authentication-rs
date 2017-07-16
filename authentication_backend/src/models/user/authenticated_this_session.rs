@@ -119,6 +119,16 @@ impl AuthenticatedThisSession {
         }
     }
 
+    pub fn verify(&mut self) -> bool {
+        let mut user = match User::find_by_id(self.id) {
+            Ok(user) => user,
+            Err(_) => return false,
+        };
+
+        self.verified = user.verify();
+        self.verified
+    }
+
     fn from_authenticated(auth: &Authenticated, password: &str) -> Result<Self> {
         if auth.verify_password(password)? {
             Ok(AuthenticatedThisSession {
@@ -144,23 +154,13 @@ impl AuthenticatedThisSession {
 mod tests {
     use diesel::prelude::*;
     use super::*;
-    use test_helper::*;
-    use authenticatable::Authenticatable;
     use schema::verification_codes::dsl::*;
-    use models::user::test_helper::with_user;
+    use models::user::test_helper::with_auth_session;
     use models::VerificationCode;
 
     #[test]
     fn update_password_updates_password() {
-        with_user(|mut user| {
-            user.verify(&CONFIG.db().unwrap());
-
-            let auth = Authenticatable::UserAndPass {
-                username: user.username(),
-                password: test_password(),
-            };
-
-            let mut auth = User::authenticate_session(&auth).expect("Failed to authenticate");
+        with_auth_session(|mut auth| {
             let result = auth.update_password("P455w0rd$.");
 
             assert!(result.is_ok(), "Failed to update password");
@@ -169,15 +169,7 @@ mod tests {
 
     #[test]
     fn update_password_fails_with_weak_password() {
-        with_user(|mut user| {
-            user.verify(&CONFIG.db().unwrap());
-
-            let auth = Authenticatable::UserAndPass {
-                username: user.username(),
-                password: test_password(),
-            };
-
-            let mut auth = User::authenticate_session(&auth).expect("Failed to authenticate");
+        with_auth_session(|mut auth| {
             let result = auth.update_password("asdfasdfasdf");
 
             assert!(!result.is_ok(), "Allowed update to weak password");
@@ -186,15 +178,7 @@ mod tests {
 
     #[test]
     fn update_username_updates_username() {
-        with_user(|mut user| {
-            user.verify(&CONFIG.db().unwrap());
-
-            let auth = Authenticatable::UserAndPass {
-                username: user.username(),
-                password: test_password(),
-            };
-
-            let mut auth = User::authenticate_session(&auth).expect("Failed to authenticate");
+        with_auth_session(|mut auth| {
             let result = auth.update_username("some_new_username");
 
             assert!(result.is_ok(), "Failed to update username");
@@ -203,15 +187,7 @@ mod tests {
 
     #[test]
     fn update_username_fails_with_empty_username() {
-        with_user(|mut user| {
-            user.verify(&CONFIG.db().unwrap());
-
-            let auth = Authenticatable::UserAndPass {
-                username: user.username(),
-                password: test_password(),
-            };
-
-            let mut auth = User::authenticate_session(&auth).expect("Failed to authenticate");
+        with_auth_session(|mut auth| {
             let result = auth.update_username("");
 
             assert!(!result.is_ok(), "Updated username to empty string");
@@ -220,15 +196,8 @@ mod tests {
 
     #[test]
     fn create_webtoken_creates_webtoken() {
-        with_user(|mut user| {
-            user.verify(&CONFIG.db().unwrap());
-
-            let auth = Authenticatable::UserAndPass {
-                username: user.username(),
-                password: test_password(),
-            };
-
-            let auth = User::authenticate_session(&auth).expect("Failed to authenticate");
+        with_auth_session(|mut auth| {
+            auth.verify();
 
             let result = auth.create_webtoken();
 
@@ -238,13 +207,7 @@ mod tests {
 
     #[test]
     fn unverified_users_cant_create_webtoken() {
-        with_user(|user| {
-            let auth = Authenticatable::UserAndPass {
-                username: user.username(),
-                password: test_password(),
-            };
-
-            let auth = User::authenticate_session(&auth).expect("Failed to authenticate");
+        with_auth_session(|auth| {
             let result = auth.create_webtoken();
 
             assert!(!result.is_ok(), "Unverified User created webtoken");
@@ -253,14 +216,7 @@ mod tests {
 
     #[test]
     fn delete_deletes_existing_user() {
-        with_user(|user| {
-            let auth = Authenticatable::UserAndPass {
-                username: user.username(),
-                password: test_password(),
-            };
-
-            let auth = User::authenticate_session(&auth).expect("Failed to authenticate");
-
+        with_auth_session(|auth| {
             let result = auth.delete();
 
             assert!(result.is_ok(), "Failed to delete existing user");
@@ -269,20 +225,15 @@ mod tests {
 
     #[test]
     fn delete_deletes_associated_verification_code() {
-        with_user(|user| {
+        with_auth_session(|auth_session| {
+            let user =
+                User::find_by_id(auth_session.id).expect("Failed to find user for auth_session");
+
             let vc = verification_codes
                 .filter(user_id.eq(UserTrait::id(&user)))
                 .first::<VerificationCode>(CONFIG.db().unwrap().conn());
 
             assert!(vc.is_ok(), "Could not get verification_code for user");
-
-            let auth = Authenticatable::UserAndPass {
-                username: &user.username(),
-                password: test_password(),
-            };
-
-            let auth_session =
-                User::authenticate_session(&auth).expect("Failed to authenticate User");
 
             let _ = auth_session.delete().expect("Failed to delete User");
 

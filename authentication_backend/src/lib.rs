@@ -49,7 +49,8 @@ mod error;
 mod webtoken;
 mod authenticatable;
 
-pub use models::{Admin, User, Permission, UserPermission, VerificationCode};
+pub use models::{Admin, Authenticated, AuthenticatedThisSession, User, UserTrait, Permission,
+                 UserPermission, VerificationCode};
 pub use error::{Error, BcryptError, DbError, DbErrorKind, JWTError, JWTErrorKind};
 pub use webtoken::Webtoken;
 pub use authenticatable::{Authenticatable, ToAuth};

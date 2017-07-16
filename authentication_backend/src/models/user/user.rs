@@ -19,7 +19,6 @@
 
 use diesel;
 use schema::users;
-use config::db::DB;
 use CONFIG;
 use authenticatable::{Authenticatable, ToAuth};
 use bcrypt::verify;
@@ -122,7 +121,7 @@ impl User {
             .filter(code.eq(vc))
             .first::<(VerificationCode, User)>(db.conn())?;
 
-        if !user.verify(&db) {
+        if !user.verify() {
             return Err(Error::UserNotVerifiedError);
         }
 
@@ -131,8 +130,13 @@ impl User {
         Ok(user)
     }
 
-    pub fn verify(&mut self, db: &DB) -> bool {
+    pub fn verify(&mut self) -> bool {
         use schema::users::dsl::*;
+
+        let db = match CONFIG.db() {
+            Ok(db) => db,
+            Err(_) => return false,
+        };
 
         let updated_record = diesel::update(users.filter(id.eq(self.id)))
             .set(verified.eq(true))
@@ -264,7 +268,7 @@ mod tests {
     #[test]
     fn verify_verifies_user() {
         with_user(|mut user| {
-            let result = user.verify(&CONFIG.db().unwrap());
+            let result = user.verify();
 
             assert!(result, "Failed to verify user");
             assert!(user.verified, "User not verified");
@@ -274,7 +278,7 @@ mod tests {
     #[test]
     fn authenticate_gets_user_from_valid_webtoken() {
         with_user(|mut user| {
-            user.verify(&CONFIG.db().unwrap());
+            user.verify();
 
             let auth = Authenticatable::UserAndPass {
                 username: user.username(),
@@ -313,7 +317,7 @@ mod tests {
     #[test]
     fn authenticate_with_token_and_password_works() {
         with_user(|mut user| {
-            assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
+            assert!(user.verify(), "Failed to verify User");
 
             let auth = Authenticatable::UserAndPass {
                 username: user.username(),
@@ -341,7 +345,7 @@ mod tests {
     #[test]
     fn authenticate_fails_with_token_and_bad_password() {
         with_user(|mut user| {
-            assert!(user.verify(&CONFIG.db().unwrap()), "Failed to verify User");
+            assert!(user.verify(), "Failed to verify User");
 
             let auth = Authenticatable::UserAndPass {
                 username: user.username(),

@@ -22,7 +22,7 @@ mod verification_code;
 mod permission;
 mod user_permission;
 
-pub use self::user::{Admin, User};
+pub use self::user::{Admin, Authenticated, AuthenticatedThisSession, User, UserTrait};
 pub use self::verification_code::VerificationCode;
 pub use self::permission::Permission;
 pub use self::user_permission::UserPermission;
