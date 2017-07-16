@@ -22,7 +22,7 @@ use diesel::prelude::*;
 use CONFIG;
 use error::Result;
 use schema::user_permissions;
-use models::user::User;
+use models::user::{User, UserTrait};
 use models::permission::Permission;
 use super::NewUserPermission;
 
@@ -48,13 +48,13 @@ impl UserPermission {
         self.permission_id
     }
 
-    pub fn create(user: &User, permission: &Permission) -> Result<Self> {
+    pub fn create(user: &UserTrait, permission: &Permission) -> Result<Self> {
         let new_user_permission = NewUserPermission::new(user, permission);
 
         new_user_permission.save()
     }
 
-    pub fn has_permission(user: &User, permission: &Permission) -> bool {
+    pub fn has_permission(user: &UserTrait, permission: &Permission) -> bool {
         use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
 
         let db = match CONFIG.db() {
@@ -73,7 +73,7 @@ impl UserPermission {
         }
     }
 
-    pub fn get_permissions(user: &User) -> Result<Vec<Permission>> {
+    pub fn get_permissions(user: &UserTrait) -> Result<Vec<Permission>> {
         use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
         use schema::permissions::dsl::{id, permissions};
 
@@ -109,7 +109,7 @@ impl UserPermission {
         Ok(results.into_iter().map(|(_, user)| user).collect())
     }
 
-    pub fn delete(user: &User, permission: &Permission) -> Result<()> {
+    pub fn delete(user: &UserTrait, permission: &Permission) -> Result<()> {
         use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
 
         let db = CONFIG.db()?;

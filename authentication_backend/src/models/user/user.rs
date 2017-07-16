@@ -117,7 +117,7 @@ impl User {
             _ => return false,
         };
 
-        UserPermission::has_permission(&self, &permission)
+        UserPermission::has_permission(self, &permission)
     }
 
     pub fn verify_with_code(vc: &str) -> Result<Self> {

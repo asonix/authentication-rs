@@ -22,7 +22,7 @@ use diesel::prelude::*;
 use CONFIG;
 use error::Result;
 use schema::user_permissions;
-use models::{User, Permission, UserPermission};
+use models::{Permission, UserPermission};
 use models::user::UserTrait;
 
 #[derive(Insertable)]
@@ -33,7 +33,7 @@ pub struct NewUserPermission {
 }
 
 impl NewUserPermission {
-    pub fn new(user: &User, permission: &Permission) -> Self {
+    pub fn new(user: &UserTrait, permission: &Permission) -> Self {
         NewUserPermission {
             user_id: UserTrait::id(user),
             permission_id: permission.id(),
