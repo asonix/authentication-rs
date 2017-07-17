@@ -1,9 +1,7 @@
 extern crate authentication_backend;
 
 use std::env;
-use authentication_backend::CONFIG;
-use authentication_backend::User;
-use authentication_backend::VerificationCode;
+use authentication_backend::{User, UserTrait, VerificationCode};
 
 fn main() {
     let mut args = env::args();
@@ -21,10 +19,8 @@ fn main() {
         &uname
     ));
 
-    let db = CONFIG.db().expect("Failed to get Database");
-
     if !user.is_verified() {
-        if user.verify(&db) {
+        if user.verify() {
             VerificationCode::delete_by_user_id(user.id()).expect(&format!(
                 "Failed to delete verification_code for user '{}'",
                 user.username(),
