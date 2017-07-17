@@ -47,6 +47,7 @@ pub fn launch() -> () {
                 routes::delete,
                 routes::create_permission,
                 routes::give_permission,
+                routes::revoke_permission,
             ],
         )
         .launch();

@@ -82,14 +82,29 @@ pub fn create_permission(new_permission: Json<CreatePermission>) -> Response {
     Ok(AuthResponse::new("Permission created", permission))
 }
 
-#[post("/give-permission", format = "application/json", data = "<payload>")]
-pub fn give_permission(payload: Json<GivePermission>) -> Response {
+#[post("/give-permission/<target_user>", format = "application/json", data = "<payload>")]
+pub fn give_permission(target_user: String, payload: Json<GivePermission>) -> Response {
     let user = User::authenticate(&payload.0)?;
     let admin = Admin::from_authenticated(user)?;
 
-    let target_user = User::find_by_name(&payload.0.target_user())?;
+    let target_user = User::find_by_name(&target_user)?;
 
     admin.give_permission(&target_user, &payload.0.permission())?;
 
     Ok(AuthResponse::empty("Permission granted"))
+}
+
+#[post("/revoke-permission/<target_user>", format = "application/json", data = "<payload>")]
+pub fn revoke_permission(target_user: String, payload: Json<GivePermission>) -> Response {
+    let user = User::authenticate(&payload.0)?;
+    let admin = Admin::from_authenticated(user)?;
+
+    let target_user = User::find_by_name(&target_user)?;
+
+    admin.revoke_permission(
+        &target_user,
+        &payload.0.permission(),
+    )?;
+
+    Ok(AuthResponse::empty("Permission revoked"))
 }

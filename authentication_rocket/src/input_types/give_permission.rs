@@ -23,17 +23,12 @@ use super::UserToken;
 #[derive(Deserialize)]
 pub struct GivePermission {
     authorizing_user: UserToken,
-    target_user: String,
     permission: String,
 }
 
 impl GivePermission {
     pub fn permission(&self) -> &str {
         &self.permission
-    }
-
-    pub fn target_user(&self) -> &str {
-        &self.target_user
     }
 }
 

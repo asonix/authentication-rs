@@ -31,9 +31,12 @@ This application accepts data as JSON. It can create, verify, authenticate, and 
  - `POST /new-permission`
     - INPUT: **user_token** and **permission_name**
     - If **user_token** represents and admin, creates a new **Permission** with **permission_name**
- - `POST /give-permission`
+ - `POST /give-permission/<target_username>`
     - INPUT: **user_token**, **target_username**, and **permission_name**
     - If **user_token** represents an admin, gives **target_user** the **permission**.
+ - `POST /revoke-permission/<target_username>`
+    - INPUT: **user_token**, **target_username**, and **permission_name**
+    - If **user_token** represents an admin, revokes the **permission** from **target_user**.
 
 ### MakeAdmin binary
 #### Usage
