@@ -46,13 +46,14 @@ impl Webtoken {
         Ok(webtoken)
     }
 
-    pub fn authenticate(token: &str) -> Result<(i32, String, bool)> {
+    pub fn authenticate(token: &str) -> Result<(i32, String, bool, bool)> {
         let claims = Claims::authenticate(token)?;
 
         Ok((
             claims.id(),
             claims.username().to_owned(),
             claims.is_verified(),
+            claims.is_admin(),
         ))
     }
 
@@ -94,7 +95,7 @@ mod tests {
 
             assert!(result.is_ok(), "Failed to get claims from User Token");
 
-            let (result_id, result_name, result_verified) = result.unwrap();
+            let (result_id, result_name, result_verified, result_admin) = result.unwrap();
 
             assert_eq!(authenticated.id(), result_id, "User from Token has bad ID");
             assert_eq!(
@@ -125,7 +126,7 @@ mod tests {
 
             assert!(result.is_ok(), "Failed to get claims from User Token");
 
-            let (result_id, result_name, result_verified) = result.unwrap();
+            let (result_id, result_name, result_verified, result_admin) = result.unwrap();
 
             assert_eq!(authenticated.id(), result_id, "User from Token has bad ID");
             assert_eq!(

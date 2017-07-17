@@ -20,7 +20,7 @@
 use jwt::{Algorithm, Validation};
 use chrono::{Utc, Duration};
 use CONFIG;
-use models::UserTrait;
+use models::{UserTrait, UserPermission, Permission};
 use error::Result;
 
 #[derive(Serialize, Deserialize)]
@@ -32,6 +32,7 @@ pub struct Claims {
     user_id: i32,
     username: String,
     verified: bool,
+    admin: bool,
 }
 
 impl UserTrait for Claims {
@@ -49,12 +50,21 @@ impl UserTrait for Claims {
 }
 
 impl Claims {
+    pub fn is_admin(&self) -> bool {
+        self.admin
+    }
+
     pub fn new<T>(user: &T, subject: &str, days: i64) -> Self
     where
         T: UserTrait,
     {
         let issued_at = Utc::now();
         let expiration = issued_at + Duration::days(days);
+
+        let admin = match Permission::find("admin") {
+            Ok(permission) => UserPermission::has_permission(user, &permission),
+            Err(_) => false,
+        };
 
         Claims {
             iss: "authentication".to_owned(),
@@ -64,6 +74,7 @@ impl Claims {
             user_id: user.id(),
             username: user.username().to_owned(),
             verified: user.is_verified(),
+            admin: admin,
         }
     }
 
