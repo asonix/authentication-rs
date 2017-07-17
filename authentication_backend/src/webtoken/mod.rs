@@ -17,94 +17,11 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use error::Result;
-use self::claims::Claims;
-use self::new_webtoken::NewWebtoken;
-
 mod claims;
 mod new_webtoken;
+mod webtoken;
 
-pub struct Webtoken {
-    user_token: String,
-    renewal_token: String,
-}
-
-impl Webtoken {
-    pub fn create(user_id: i32, username: &str) -> Result<Self> {
-        let new_webtoken = NewWebtoken::new(user_id, username);
-
-        let webtoken = new_webtoken.to_token()?;
-
-        Ok(webtoken)
-    }
-
-    pub fn authenticate(token: &str) -> Result<(i32, String)> {
-        let claims = Claims::authenticate(token)?;
-
-        Ok((claims.user_id(), claims.username().to_owned()))
-    }
-
-    pub fn renew(token: &str) -> Result<Self> {
-        let claims = Claims::renew(token)?;
-
-        Webtoken::create(claims.user_id(), claims.username())
-    }
-
-    pub fn user_token(&self) -> &str {
-        &self.user_token
-    }
-
-    pub fn renewal_token(&self) -> &str {
-        &self.renewal_token
-    }
-}
+pub use self::webtoken::Webtoken;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn create_creates_webtoken() {
-        let result = Webtoken::create(1, "some name");
-
-        assert!(result.is_ok(), "Failed to create webtoken");
-    }
-
-    #[test]
-    fn full_authentication_cycle_works() {
-        let user_id = 1;
-        let username = "some name";
-        let webtoken = Webtoken::create(user_id, username).expect("Failed to create webtoken");
-
-        let result = Webtoken::authenticate(webtoken.user_token());
-
-        assert!(result.is_ok(), "Failed to get claims from User Token");
-
-        let (result_id, result_name) = result.unwrap();
-
-        assert_eq!(user_id, result_id, "User from Token has bad ID");
-        assert_eq!(username, result_name, "User from Token has bad username");
-    }
-
-    #[test]
-    fn full_renewal_cycle_works() {
-        let user_id = 1;
-        let username = "some name";
-        let webtoken = Webtoken::create(user_id, username).expect("Failed to create webtoken");
-
-        let webtoken_2 = Webtoken::renew(webtoken.renewal_token());
-
-        assert!(webtoken_2.is_ok(), "Failed to renew webtoken");
-
-        let webtoken_2 = webtoken_2.unwrap();
-
-        let result = Webtoken::authenticate(webtoken_2.user_token());
-
-        assert!(result.is_ok(), "Failed to get claims from User Token");
-
-        let (result_id, result_name) = result.unwrap();
-
-        assert_eq!(user_id, result_id, "User from Token has bad ID");
-        assert_eq!(username, result_name, "User from Token has bad username");
-    }
-}
+pub mod test_helper;

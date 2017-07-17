@@ -20,6 +20,7 @@
 use jwt::{Header, Algorithm};
 use CONFIG;
 use error::Result;
+use models::UserTrait;
 use super::claims::Claims;
 use super::Webtoken;
 
@@ -29,10 +30,13 @@ pub struct NewWebtoken {
 }
 
 impl NewWebtoken {
-    pub fn new(user_id: i32, username: &str) -> Self {
+    pub fn new<T>(user: &T) -> Self
+    where
+        T: UserTrait,
+    {
         NewWebtoken {
-            user_claims: Claims::new(user_id, username, "user", 2),
-            renewal_claims: Claims::new(user_id, username, "renewal", 7),
+            user_claims: Claims::new(user, "user", 2),
+            renewal_claims: Claims::new(user, "renewal", 7),
         }
     }
 
@@ -42,21 +46,24 @@ impl NewWebtoken {
 
         let secret = CONFIG.jwt_secret();
 
-        Ok(Webtoken {
-            user_token: secret.encode(&header, &self.user_claims)?,
-            renewal_token: secret.encode(&header, &self.renewal_claims)?,
-        })
+        Ok(Webtoken::new(
+            &secret.encode(&header, &self.user_claims)?,
+            &secret.encode(&header, &self.renewal_claims)?,
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use models::test_helper::with_authenticated;
     use super::*;
 
     #[test]
     fn to_token_creates_webtoken() {
-        let result = NewWebtoken::new(1, "some user").to_token();
+        with_authenticated(|authenticated| {
+            let result = NewWebtoken::new(&authenticated).to_token();
 
-        assert!(result.is_ok(), "Failed to create webtoken");
+            assert!(result.is_ok(), "Failed to create webtoken");
+        });
     }
 }

@@ -63,7 +63,7 @@ impl AuthenticatedThisSession {
             return Err(Error::UserNotVerifiedError);
         }
 
-        let token = Webtoken::create(self.id, &self.username)?;
+        let token = Webtoken::create(self)?;
 
         Ok(token)
     }

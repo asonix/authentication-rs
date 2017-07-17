@@ -65,7 +65,7 @@ impl Authenticated {
 
         let db = CONFIG.db()?;
 
-        let (user_id, _) = Webtoken::authenticate(webtoken)?;
+        let (user_id, _, _) = Webtoken::authenticate(webtoken)?;
 
         let user = users
             .filter(verified.eq(true))

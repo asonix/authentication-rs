@@ -23,7 +23,7 @@ use CONFIG;
 use std::panic;
 use test_helper::*;
 use error::Result;
-use super::{UserTrait, User, NewUser, Admin, AuthenticatedThisSession};
+use super::{UserTrait, User, NewUser, Admin, Authenticated, AuthenticatedThisSession};
 use models::{Permission, UserPermission};
 use authenticatable::Authenticatable;
 
@@ -80,6 +80,22 @@ where
         );
 
         panic::catch_unwind(|| test(admin)).unwrap();
+    });
+}
+
+pub fn with_authenticated<T>(test: T) -> ()
+where
+    T: FnOnce(Authenticated) -> () + panic::UnwindSafe,
+{
+    with_user(|user| {
+        let auth = Authenticatable::UserAndPass {
+            username: user.username(),
+            password: test_password(),
+        };
+
+        let auth = User::authenticate(&auth).expect("Failed to authenticate");
+
+        panic::catch_unwind(|| test(auth)).unwrap();
     });
 }
 

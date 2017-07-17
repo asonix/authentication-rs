@@ -20,6 +20,7 @@
 use jwt::{Algorithm, Validation};
 use chrono::{Utc, Duration};
 use CONFIG;
+use models::UserTrait;
 use error::Result;
 
 #[derive(Serialize, Deserialize)]
@@ -30,10 +31,28 @@ pub struct Claims {
     exp: i64,
     user_id: i32,
     username: String,
+    verified: bool,
+}
+
+impl UserTrait for Claims {
+    fn id(&self) -> i32 {
+        self.user_id
+    }
+
+    fn username(&self) -> &str {
+        &self.username
+    }
+
+    fn is_verified(&self) -> bool {
+        self.verified
+    }
 }
 
 impl Claims {
-    pub fn new(user_id: i32, username: &str, subject: &str, days: i64) -> Self {
+    pub fn new<T>(user: &T, subject: &str, days: i64) -> Self
+    where
+        T: UserTrait,
+    {
         let issued_at = Utc::now();
         let expiration = issued_at + Duration::days(days);
 
@@ -42,17 +61,10 @@ impl Claims {
             sub: subject.to_owned(),
             iat: issued_at.timestamp(),
             exp: expiration.timestamp(),
-            user_id: user_id,
-            username: username.to_string(),
+            user_id: user.id(),
+            username: user.username().to_owned(),
+            verified: user.is_verified(),
         }
-    }
-
-    pub fn user_id(&self) -> i32 {
-        self.user_id
-    }
-
-    pub fn username(&self) -> &str {
-        &self.username
     }
 
     pub fn authenticate(token: &str) -> Result<Self> {
@@ -83,92 +95,83 @@ impl Claims {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use webtoken::test_helper::{with_claims, with_token};
     use jwt::Header;
 
     #[test]
     fn renew_creates_claims() {
-        let claims = Claims::new(1, "hello", "renewal", 2);
+        with_claims("renewal", |claims| {
+            let mut header = Header::default();
+            header.alg = Algorithm::RS512;
 
-        let mut header = Header::default();
-        header.alg = Algorithm::RS512;
+            let token: String = CONFIG.jwt_secret().encode(&header, &claims).expect(
+                "Failed to create token from claims",
+            );
 
-        let token = CONFIG.jwt_secret().encode(&header, &claims).expect(
-            "Failed to create token from claims",
-        );
-        let result = Claims::renew(&token);
+            let result = Claims::renew(&token);
 
-        assert!(result.is_ok(), "Failed to get claims from token");
+            assert!(result.is_ok(), "Failed to get claims from token");
 
-        let result = result.unwrap();
+            let result = result.unwrap();
 
-        assert_eq!(
-            result.user_id(),
-            claims.user_id(),
-            "Token returns different user_id from start"
-        );
-        assert_eq!(
-            result.username(),
-            claims.username(),
-            "Token returns different username from start"
-        );
+            assert_eq!(
+                result.id(),
+                claims.id(),
+                "Token returns different user_id from start"
+            );
+            assert_eq!(
+                result.username(),
+                claims.username(),
+                "Token returns different username from start"
+            );
+        });
     }
 
     #[test]
     fn authenticate_creates_claims() {
-        let claims = Claims::new(1, "hello", "user", 2);
+        with_claims("user", |claims| {
+            let mut header = Header::default();
+            header.alg = Algorithm::RS512;
 
-        let mut header = Header::default();
-        header.alg = Algorithm::RS512;
+            let token: String = CONFIG.jwt_secret().encode(&header, &claims).expect(
+                "Failed to create token from claims",
+            );
 
-        let token = CONFIG.jwt_secret().encode(&header, &claims).expect(
-            "Failed to create token from claims",
-        );
-        let result = Claims::authenticate(&token);
+            let result = Claims::authenticate(&token);
 
-        assert!(result.is_ok(), "Failed to get claims from token");
+            assert!(result.is_ok(), "Failed to get claims from token");
 
-        let result = result.unwrap();
+            let result = result.unwrap();
 
-        assert_eq!(
-            result.user_id(),
-            claims.user_id(),
-            "Token returns different user_id from start"
-        );
-        assert_eq!(
-            result.username(),
-            claims.username(),
-            "Token returns different username from start"
-        );
+            assert_eq!(
+                result.id(),
+                claims.id(),
+                "Token returns different user_id from start"
+            );
+            assert_eq!(
+                result.username(),
+                claims.username(),
+                "Token returns different username from start"
+            );
+        });
     }
 
     #[test]
     fn renew_fails_with_user_token() {
-        let claims = Claims::new(1, "hello", "user", 2);
+        with_token("user", |token| {
+            let result = Claims::renew(token);
 
-        let mut header = Header::default();
-        header.alg = Algorithm::RS512;
-
-        let token = CONFIG.jwt_secret().encode(&header, &claims).expect(
-            "Failed to create token from claims",
-        );
-        let result = Claims::renew(&token);
-
-        assert!(!result.is_ok(), "Validated User token as Renewal token");
+            assert!(!result.is_ok(), "Validated User token as Renewal token");
+        });
     }
 
     #[test]
     fn authenticate_fails_with_renewal_token() {
-        let claims = Claims::new(1, "hello", "renewal", 2);
+        with_token("renewal", |token| {
+            let result = Claims::authenticate(token);
 
-        let mut header = Header::default();
-        header.alg = Algorithm::RS512;
-
-        let token = CONFIG.jwt_secret().encode(&header, &claims).expect(
-            "Failed to create token from claims",
-        );
-        let result = Claims::authenticate(&token);
-
-        assert!(!result.is_ok(), "Validated User token as Renewal token");
+            assert!(!result.is_ok(), "Validated User token as Renewal token");
+        });
     }
 
     #[test]
