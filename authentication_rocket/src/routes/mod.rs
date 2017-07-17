@@ -17,19 +17,12 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use authentication_backend::{Authenticatable, ToAuth};
+use auth_response::AuthResponse;
+use error::Error;
 
-#[derive(Deserialize)]
-pub struct CreateUser {
-    username: String,
-    password: String,
-}
+pub type Response = Result<AuthResponse, Error>;
 
-impl ToAuth for CreateUser {
-    fn to_auth(&self) -> Authenticatable {
-        Authenticatable::UserAndPass {
-            username: &self.username,
-            password: &self.password,
-        }
-    }
-}
+pub mod users;
+pub mod webtokens;
+pub mod verification_codes;
+pub mod permissions;

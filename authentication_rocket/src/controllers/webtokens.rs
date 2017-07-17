@@ -17,10 +17,12 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod auth;
-mod create_permission;
-mod renewal_token;
+use authentication_backend::Webtoken;
+use routes::Response;
+use auth_response::AuthResponse;
 
-pub use self::auth::Auth;
-pub use self::create_permission::CreatePermission;
-pub use self::renewal_token::RenewalToken;
+pub fn renew(renewal_token: &str) -> Response {
+    let webtoken = Webtoken::renew(renewal_token)?;
+
+    Ok(AuthResponse::new("Renewed", webtoken))
+}

@@ -18,11 +18,11 @@
  */
 
 use authentication_backend::{Authenticatable, ToAuth};
-use super::UserToken;
+use super::Auth;
 
 #[derive(Deserialize)]
 pub struct CreatePermission {
-    authorizing_user: UserToken,
+    authorizing_user: Auth,
     permission: String,
 }
 

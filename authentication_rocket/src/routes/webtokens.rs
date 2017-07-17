@@ -17,15 +17,12 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use authentication_backend::{Authenticatable, ToAuth};
+use rocket_contrib::Json;
+use controllers::webtokens;
+use input_types::RenewalToken;
+use super::Response;
 
-#[derive(Deserialize)]
-pub struct UserToken {
-    user_token: String,
-}
-
-impl ToAuth for UserToken {
-    fn to_auth(&self) -> Authenticatable {
-        Authenticatable::UserToken { user_token: &self.user_token }
-    }
+#[post("/renew-token", format = "application/json", data = "<renewal_token>")]
+pub fn renew(renewal_token: Json<RenewalToken>) -> Response {
+    webtokens::renew(&renewal_token.0.renewal_token)
 }

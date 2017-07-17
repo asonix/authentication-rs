@@ -30,6 +30,7 @@ extern crate rocket_contrib;
 extern crate authentication_backend;
 
 mod routes;
+mod controllers;
 mod error;
 mod auth_response;
 mod input_types;
@@ -39,15 +40,16 @@ pub fn launch() -> () {
         .mount(
             "/",
             routes![
-                routes::sign_up,
-                routes::log_in,
-                routes::renew,
-                routes::is_authenticated,
-                routes::verify,
-                routes::delete,
-                routes::create_permission,
-                routes::give_permission,
-                routes::revoke_permission,
+                routes::users::sign_up,
+                routes::users::log_in,
+                routes::users::is_authenticated,
+                routes::users::delete,
+                routes::users::grant_permission,
+                routes::users::revoke_permission,
+                routes::webtokens::renew,
+                routes::verification_codes::verify,
+                routes::permissions::create,
+                routes::permissions::delete,
             ],
         )
         .launch();

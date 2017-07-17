@@ -17,23 +17,12 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use authentication_backend::{Authenticatable, ToAuth};
-use super::UserToken;
+use authentication_backend::User;
+use routes::Response;
+use auth_response::AuthResponse;
 
-#[derive(Deserialize)]
-pub struct GivePermission {
-    authorizing_user: UserToken,
-    permission: String,
-}
+pub fn verify(code: &str) -> Response {
+    User::verify_with_code(code)?;
 
-impl GivePermission {
-    pub fn permission(&self) -> &str {
-        &self.permission
-    }
-}
-
-impl ToAuth for GivePermission {
-    fn to_auth(&self) -> Authenticatable {
-        self.authorizing_user.to_auth()
-    }
+    Ok(AuthResponse::empty("User verified"))
 }

@@ -20,16 +20,35 @@
 use authentication_backend::{Authenticatable, ToAuth};
 
 #[derive(Deserialize)]
-pub struct UserTokenWithPassword {
-    user_token: String,
-    password: String,
+#[serde(untagged)]
+pub enum Auth {
+    UserAndPass { username: String, password: String },
+    WebtokenAndPass { webtoken: String, password: String },
+    Webtoken { webtoken: String },
 }
 
-impl ToAuth for UserTokenWithPassword {
+impl ToAuth for Auth {
     fn to_auth(&self) -> Authenticatable {
-        Authenticatable::UserTokenAndPass {
-            user_token: &self.user_token,
-            password: &self.password,
+        match *self {
+            Auth::UserAndPass {
+                username: ref u,
+                password: ref p,
+            } => {
+                Authenticatable::UserAndPass {
+                    username: u,
+                    password: p,
+                }
+            }
+            Auth::WebtokenAndPass {
+                webtoken: ref w,
+                password: ref p,
+            } => {
+                Authenticatable::UserTokenAndPass {
+                    user_token: w,
+                    password: p,
+                }
+            }
+            Auth::Webtoken { webtoken: ref w } => Authenticatable::UserToken { user_token: w },
         }
     }
 }

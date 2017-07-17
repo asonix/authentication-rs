@@ -17,10 +17,30 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod auth;
-mod create_permission;
-mod renewal_token;
+use authentication_backend::{ToAuth, Admin, User};
+use routes::Response;
+use auth_response::AuthResponse;
 
-pub use self::auth::Auth;
-pub use self::create_permission::CreatePermission;
-pub use self::renewal_token::RenewalToken;
+pub fn create<T>(permission: &str, auth: &T) -> Response
+where
+    T: ToAuth,
+{
+    let user = User::authenticate(auth)?;
+    let admin = Admin::from_authenticated(user)?;
+
+    let permission = admin.create_permission(permission)?;
+
+    Ok(AuthResponse::new("Permission created", permission))
+}
+
+pub fn delete<T>(permission: &str, auth: &T) -> Response
+where
+    T: ToAuth,
+{
+    let user = User::authenticate(auth)?;
+    let admin = Admin::from_authenticated(user)?;
+
+    admin.delete_permission(permission)?;
+
+    Ok(AuthResponse::empty("Permission deleted"))
+}

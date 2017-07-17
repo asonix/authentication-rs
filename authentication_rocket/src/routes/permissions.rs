@@ -17,10 +17,18 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod auth;
-mod create_permission;
-mod renewal_token;
+use rocket_contrib::Json;
+use input_types::Auth;
+use input_types::CreatePermission;
+use controllers::permissions;
+use super::Response;
 
-pub use self::auth::Auth;
-pub use self::create_permission::CreatePermission;
-pub use self::renewal_token::RenewalToken;
+#[post("/permissions", format = "application/json", data = "<new_permission>")]
+pub fn create(new_permission: Json<CreatePermission>) -> Response {
+    permissions::create(new_permission.0.permission(), &new_permission.0)
+}
+
+#[post("/permissions/<permission_name>/delete", format = "application/json", data = "<payload>")]
+pub fn delete(permission_name: String, payload: Json<Auth>) -> Response {
+    permissions::delete(&permission_name, &payload.0)
+}

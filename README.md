@@ -13,30 +13,33 @@ This application accepts data as JSON. It can create, verify, authenticate, and 
     - INPUT: **username** and **password**
     - Creates a **User** entry and a **VerificationCode** entry in the database.
     - OUTPUT: **user_id** and **username**
- - `GET /verify/<verification_code>`
-    - INPUT: **verification_code**
-    - Marks **User** as verified and deletes associated **VerificationCode**.
  - `POST /log-in`
     - INPUT: **username** and **password**
     - OUTPUT: **user_token** and **renewal_token**
  - `POST /is-authenticated`
-    - INPUT: **user_token**
-    - OUTPUT: Whether or not **user_token** is valid
- - `POST /renew`
+    - INPUT: **auth**
+    - OUTPUT: Whether or not **auth** is valid
+ - `POST /users/<target_user>/delete`
+    - INPUT: **auth**
+    - Deletes **target_user** if **user_token** represents **target_user** or if **user_token** represents and admin.
+ - `POST /users/<target_user>/grant/<permission>`
+    - INPUT: **auth**, **target_user**, and **permission**
+    - If **auth** represents an admin, gives **target_user** the **permission**.
+ - `POST /users/<target_user>/revoke/<permission>`
+    - INPUT: **auth**, **target_user**, and **permission**
+    - If **auth** represents an admin, revokes the **permission** from **target_user**.
+ - `POST /renew-token`
     - INPUT: **renewal_token**
     - OUTPUT: **user_token** and **renewal_token**
- - `POST /delete`
-    - INPUT: **user_token** and **password**
-    - Deletes **User**.
- - `POST /new-permission`
-    - INPUT: **user_token** and **permission_name**
-    - If **user_token** represents and admin, creates a new **Permission** with **permission_name**
- - `POST /give-permission/<target_username>`
-    - INPUT: **user_token**, **target_username**, and **permission_name**
-    - If **user_token** represents an admin, gives **target_user** the **permission**.
- - `POST /revoke-permission/<target_username>`
-    - INPUT: **user_token**, **target_username**, and **permission_name**
-    - If **user_token** represents an admin, revokes the **permission** from **target_user**.
+ - `GET /verify/<verification_code>`
+    - INPUT: **verification_code**
+    - Marks **User** as verified and deletes associated **VerificationCode**.
+ - `POST /permissions`
+    - INPUT: **auth** and **permission_name**
+    - If **auth** represents and admin, creates a new **Permission** with **permission_name**
+ - `POST /permissions/<permission>/delete`
+    - INPUT: **auth** and **permission**
+    - If **auth** represents and admin, deletes the **permission**
 
 ### MakeAdmin binary
 #### Usage

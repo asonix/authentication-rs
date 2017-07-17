@@ -17,10 +17,10 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod auth;
-mod create_permission;
-mod renewal_token;
+use controllers::verification_codes;
+use super::Response;
 
-pub use self::auth::Auth;
-pub use self::create_permission::CreatePermission;
-pub use self::renewal_token::RenewalToken;
+#[get("/verify/<code>")]
+pub fn verify(code: String) -> Response {
+    verification_codes::verify(&code)
+}

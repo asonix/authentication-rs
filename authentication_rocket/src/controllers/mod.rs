@@ -17,10 +17,7 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod auth;
-mod create_permission;
-mod renewal_token;
-
-pub use self::auth::Auth;
-pub use self::create_permission::CreatePermission;
-pub use self::renewal_token::RenewalToken;
+pub mod users;
+pub mod webtokens;
+pub mod verification_codes;
+pub mod permissions;
