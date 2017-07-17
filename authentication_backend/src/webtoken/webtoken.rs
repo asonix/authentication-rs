@@ -95,7 +95,7 @@ mod tests {
 
             assert!(result.is_ok(), "Failed to get claims from User Token");
 
-            let (result_id, result_name, result_verified, result_admin) = result.unwrap();
+            let (result_id, result_name, result_verified, _admin) = result.unwrap();
 
             assert_eq!(authenticated.id(), result_id, "User from Token has bad ID");
             assert_eq!(
@@ -126,7 +126,7 @@ mod tests {
 
             assert!(result.is_ok(), "Failed to get claims from User Token");
 
-            let (result_id, result_name, result_verified, result_admin) = result.unwrap();
+            let (result_id, result_name, result_verified, _admin) = result.unwrap();
 
             assert_eq!(authenticated.id(), result_id, "User from Token has bad ID");
             assert_eq!(
