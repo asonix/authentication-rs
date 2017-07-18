@@ -57,6 +57,17 @@ $ cargo run --bin verify_user <username>
 #### Information
 This binary accepts a **username** as a commandline argument and verifies that user.
 
+### CreateUser binary
+#### Usage
+```bash
+$ cargo run --bin create_user <username> <password>
+```
+#### Information
+This binary accepts a **username** and **password** as commandline arguments and creates a user with that information.
+
+#### Information
+This binary accepts a **username** as a commandline argument and verifies that user.
+
 ## Contributing
 ### Setup
 Acquire [`rustup`](https://www.rustup.rs/) and use the latest nightly:
