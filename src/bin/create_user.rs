@@ -20,34 +20,33 @@
 extern crate authentication_backend;
 
 use std::env;
-use authentication_backend::{User, UserTrait, VerificationCode};
+use authentication_backend::Authenticatable;
+use authentication_backend::User;
+use authentication_backend::UserTrait;
 
 fn main() {
     let mut args = env::args();
 
-    if args.len() != 2 {
-        panic!("Argument length must be 2");
+    if args.len() != 3 {
+        panic!("Wrong number of arguments");
     }
 
     let _executable: Option<String> = args.next();
 
     let uname: String = args.next().expect("Failed to get username from arguments");
+    let password: String = args.next().expect("Failed to get password from arguments");
 
-    let mut user: User = User::find_by_name(&uname).expect(&format!(
-        "Unable to find user with username '{}'",
-        &uname
-    ));
+    let auth = Authenticatable::UserAndPass {
+        username: &uname,
+        password: &password, // "ThisIsAP4ssw0rt$.",
+    };
 
-    if !user.is_verified() {
-        if user.verify() {
-            VerificationCode::delete_by_user_id(user.id()).expect(&format!(
-                "Failed to delete verification_code for user '{}'",
-                user.username(),
-                ));
-        } else {
-            panic!("Failed to verify user '{}'", user.username());
-        }
-    } else {
-        println!("User '{}' is already verified", &uname);
-    }
+    let user = User::create(&auth);
+
+    let user = match user {
+        Ok(user) => user,
+        Err(error) => panic!("We didn't get a user: '{}'", error),
+    };
+
+    println!("Created a user with username: '{}'", user.username());
 }
