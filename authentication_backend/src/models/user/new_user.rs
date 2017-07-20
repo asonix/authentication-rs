@@ -27,7 +27,7 @@ use error::{InputErrorKind, Error, Result};
 use authenticatable::Authenticatable;
 use super::helpers::{validate_username, validate_password};
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[table_name = "users"]
 pub struct NewUser {
     username: String,

@@ -24,6 +24,7 @@ use models::UserTrait;
 use super::claims::Claims;
 use super::Webtoken;
 
+#[derive(Debug)]
 pub struct NewWebtoken {
     user_claims: Claims,
     renewal_claims: Claims,

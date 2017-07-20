@@ -23,6 +23,7 @@ use error::Result;
 use webtoken::Webtoken;
 use super::{UserTrait, User, AuthenticatedThisSession};
 
+#[derive(Debug)]
 pub struct Authenticated {
     id: i32,
     username: String,

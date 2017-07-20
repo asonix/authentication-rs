@@ -26,6 +26,7 @@ use webtoken::Webtoken;
 use super::{UserTrait, User, Authenticated};
 use super::helpers::{validate_username, validate_password};
 
+#[derive(Debug)]
 pub struct AuthenticatedThisSession {
     id: i32,
     username: String,

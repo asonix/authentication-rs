@@ -25,7 +25,7 @@ use schema::verification_codes;
 use models::{User, VerificationCode};
 use models::user::UserTrait;
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[table_name = "verification_codes"]
 pub struct NewVerificationCode {
     code: String,

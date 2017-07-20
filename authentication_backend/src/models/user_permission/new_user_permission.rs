@@ -25,7 +25,7 @@ use schema::user_permissions;
 use models::{Permission, UserPermission};
 use models::user::UserTrait;
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[table_name = "user_permissions"]
 pub struct NewUserPermission {
     user_id: i32,

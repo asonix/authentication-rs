@@ -22,6 +22,7 @@ use error::{Error, Result};
 use models::{User, UserPermission, Permission, VerificationCode};
 use models::user::{UserTrait, Authenticated};
 
+#[derive(Debug)]
 pub struct Admin {
     id: i32,
     username: String,

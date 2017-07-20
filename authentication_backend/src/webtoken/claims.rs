@@ -23,7 +23,7 @@ use CONFIG;
 use models::{UserTrait, UserPermission, Permission};
 use error::Result;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     iss: String,
     sub: String,

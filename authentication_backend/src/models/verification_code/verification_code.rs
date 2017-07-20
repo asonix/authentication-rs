@@ -25,7 +25,7 @@ use models::user::User;
 use error::Result;
 use super::NewVerificationCode;
 
-#[derive(Queryable, Identifiable, Associations)]
+#[derive(Debug, Queryable, Identifiable, Associations)]
 #[belongs_to(User)]
 pub struct VerificationCode {
     id: i32,

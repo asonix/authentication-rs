@@ -26,7 +26,7 @@ use error::InputErrorKind::PermissionName;
 use super::Permission;
 use schema::permissions;
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[table_name = "permissions"]
 pub struct NewPermission {
     name: String,
