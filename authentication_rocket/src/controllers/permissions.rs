@@ -44,3 +44,87 @@ where
 
     Ok(AuthResponse::empty("Permission deleted"))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::panic;
+    use super::*;
+    use authentication_backend::{Authenticatable, UserTrait};
+    use authentication_backend::permission_test_helper::{with_permission, teardown_by_name};
+    use authentication_backend::user_test_helper::{with_admin, with_user};
+    use authentication_backend::test_helper::{generate_string, test_password};
+
+    #[test]
+    fn create_creates_permission() {
+        with_admin(|admin| {
+            test_wrapper(|permission| {
+                let auth = Authenticatable::UserAndPass {
+                    username: admin.username(),
+                    password: test_password(),
+                };
+
+                let result = create(permission, &auth);
+
+                assert!(result.is_ok(), "Failed to create permission");
+            });
+        });
+    }
+
+    #[test]
+    fn user_cannot_create_permission() {
+        with_user(|user| {
+            test_wrapper(|permission| {
+                let auth = Authenticatable::UserAndPass {
+                    username: user.username(),
+                    password: test_password(),
+                };
+
+                let result = create(permission, &auth);
+
+                assert!(!result.is_ok(), "Failed to create permission");
+            });
+        });
+    }
+
+    #[test]
+    fn delete_deletes_permission() {
+        with_admin(|admin| {
+            with_permission(|permission| {
+                let auth = Authenticatable::UserAndPass {
+                    username: admin.username(),
+                    password: test_password(),
+                };
+
+                let result = delete(permission.name(), &auth);
+
+                assert!(result.is_ok(), "Failed to delete permission");
+            });
+        });
+    }
+
+    #[test]
+    fn user_cannot_delete_permission() {
+        with_user(|user| {
+            with_permission(|permission| {
+                let auth = Authenticatable::UserAndPass {
+                    username: user.username(),
+                    password: test_password(),
+                };
+
+                let result = delete(permission.name(), &auth);
+
+                assert!(!result.is_ok(), "Failed to delete permission");
+            });
+        });
+    }
+
+    fn test_wrapper<T>(test: T)
+    where
+        T: FnOnce(&str) -> () + panic::UnwindSafe,
+    {
+        let permission = generate_string();
+        let result = panic::catch_unwind(|| test(&permission));
+        teardown_by_name(&permission);
+        result.unwrap();
+    }
+}

@@ -44,3 +44,10 @@ pub fn teardown(p_id: i32) -> () {
 
     let _ = diesel::delete(permissions.filter(id.eq(p_id))).execute(CONFIG.db().unwrap().conn());
 }
+
+pub fn teardown_by_name(p_name: &str) -> () {
+    use schema::permissions::dsl::*;
+
+    let _ = diesel::delete(permissions.filter(name.eq(p_name)))
+        .execute(CONFIG.db().unwrap().conn());
+}
