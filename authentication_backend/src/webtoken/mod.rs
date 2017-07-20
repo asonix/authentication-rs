@@ -23,5 +23,5 @@ mod webtoken;
 
 pub use self::webtoken::Webtoken;
 
-#[cfg(test)]
+#[cfg(feature = "test")]
 pub mod test_helper;

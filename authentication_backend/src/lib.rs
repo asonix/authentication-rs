@@ -62,6 +62,8 @@ pub use self::models::user_permission_test_helper;
 #[cfg(feature = "test")]
 pub use self::models::permission_test_helper;
 #[cfg(feature = "test")]
+pub use self::webtoken::test_helper as webtoken_test_helper;
+#[cfg(feature = "test")]
 pub mod test_helper;
 
 lazy_static! {

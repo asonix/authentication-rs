@@ -99,8 +99,9 @@ where
 #[cfg(test)]
 mod tests {
     use authentication_backend::Authenticatable;
-    use authentication_backend::user_test_helper::teardown_by_name;
-    use authentication_backend::test_helper::generate_string;
+    use authentication_backend::user_test_helper::{teardown_by_name, with_user, with_auth_session,
+                                                   with_admin};
+    use authentication_backend::test_helper::{generate_string, test_password};
     use std::panic;
     use super::*;
 
@@ -135,12 +136,226 @@ mod tests {
         test_wrapper(|username| {
             let auth = Authenticatable::UserAndPass {
                 username: username,
-                password: "Testpass$.",
+                password: "This is a bad password",
             };
 
             let user = sign_up(&auth);
 
             assert!(!user.is_ok(), "Failed to sign in user");
+        });
+    }
+
+    #[test]
+    fn log_in_logs_in() {
+        with_user(|user| {
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: test_password(),
+            };
+
+            let user = log_in(&auth);
+
+            assert!(user.is_ok(), "Failed to log in user");
+        });
+    }
+
+    #[test]
+    fn log_in_fails_with_bad_password() {
+        with_user(|user| {
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: "This is not the password",
+            };
+
+            let user = log_in(&auth);
+
+            assert!(!user.is_ok(), "Failed to log in user");
+        });
+    }
+
+    #[test]
+    fn is_authenticated_works() {
+        with_user(|user| {
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: test_password(),
+            };
+
+            let result = is_authenticated(&auth);
+
+            assert!(result.is_ok(), "Failed to verify authentication");
+        });
+    }
+
+    #[test]
+    fn is_authenticated_fails_with_bad_user() {
+        let auth = Authenticatable::UserAndPass {
+            username: "not real",
+            password: "obviously fake",
+        };
+
+        let result = is_authenticated(&auth);
+
+        assert!(
+            !result.is_ok(),
+            "Fake user should not have been authenticated"
+        );
+    }
+
+    #[test]
+    fn is_authenticated_works_with_token() {
+        with_auth_session(|mut auth| {
+            auth.verify();
+            let auth = auth;
+            let token = auth.create_webtoken().expect("Failed to create webtoken");
+
+            let auth = Authenticatable::UserToken { user_token: token.user_token() };
+
+            let result = is_authenticated(&auth);
+
+            assert!(result.is_ok(), "Failed to verify authentication");
+        });
+    }
+
+    #[test]
+    fn is_authenticated_works_with_username_and_token() {
+        with_auth_session(|mut auth| {
+            auth.verify();
+            let auth = auth;
+            let token = auth.create_webtoken().expect("Failed to create webtoken");
+
+            let auth = Authenticatable::UserTokenAndPass {
+                user_token: token.user_token(),
+                password: test_password(),
+            };
+
+            let result = is_authenticated(&auth);
+
+            assert!(result.is_ok(), "Failed to verify authentication");
+        });
+    }
+
+    #[test]
+    fn delete_with_admin_deletes_user() {
+        with_admin(|admin| {
+            with_user(|user| {
+                let auth = Authenticatable::UserAndPass {
+                    username: admin.username(),
+                    password: test_password(),
+                };
+
+                let result = delete(user.username(), &auth);
+
+                assert!(result.is_ok(), "Failed to delete user");
+            });
+        });
+    }
+
+    #[test]
+    fn delete_with_user_fails_to_delete_user() {
+        with_user(|user| {
+            with_user(|user2| {
+                let auth = Authenticatable::UserAndPass {
+                    username: user.username(),
+                    password: test_password(),
+                };
+
+                let result = delete(user2.username(), &auth);
+
+                assert!(!result.is_ok(), "Deleted user with bad permissions");
+            });
+        });
+    }
+
+    #[test]
+    fn delete_with_user_deletes_self() {
+        with_user(|user| {
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: test_password(),
+            };
+
+            let result = delete(user.username(), &auth);
+
+            assert!(result.is_ok(), "User should be alowed to delete self");
+        });
+    }
+
+    #[test]
+    fn grant_permission_grants_permission() {
+        with_admin(|admin| {
+            with_user(|user| {
+                let auth = Authenticatable::UserAndPass {
+                    username: admin.username(),
+                    password: test_password(),
+                };
+
+                let result = grant_permission(user.username(), "admin", &auth);
+
+                assert!(result.is_ok(), "Admin failed to grant User Permission");
+            });
+        });
+    }
+
+    #[test]
+    fn user_cannot_grant_permissions() {
+        with_user(|user| {
+            with_user(|user2| {
+                let auth = Authenticatable::UserAndPass {
+                    username: user.username(),
+                    password: test_password(),
+                };
+
+                let result = grant_permission(user2.username(), "admin", &auth);
+
+                assert!(!result.is_ok(), "Non-Admin User granted permission");
+            });
+        });
+    }
+
+    #[test]
+    fn user_cannot_grant_self_permissions() {
+        with_user(|user| {
+            let auth = Authenticatable::UserAndPass {
+                username: user.username(),
+                password: test_password(),
+            };
+
+            let result = grant_permission(user.username(), "admin", &auth);
+
+            assert!(!result.is_ok(), "Non-Admin User granted permission");
+        });
+    }
+
+    #[test]
+    fn admin_can_revoke_permission() {
+        with_admin(|admin| {
+            with_admin(|admin2| {
+                let auth = Authenticatable::UserAndPass {
+                    username: admin.username(),
+                    password: test_password(),
+                };
+
+                let result = revoke_permission(admin2.username(), "admin", &auth);
+
+                assert!(result.is_ok(), "Failed to revoke permission");
+            });
+        });
+    }
+
+    #[test]
+    fn user_cannot_revoke_permission() {
+        with_user(|user| {
+            with_admin(|admin| {
+                let auth = Authenticatable::UserAndPass {
+                    username: user.username(),
+                    password: test_password(),
+                };
+
+                let result = revoke_permission(admin.username(), "admin", &auth);
+
+                assert!(!result.is_ok(), "Non-Admin User revoked permission");
+            });
         });
     }
 
