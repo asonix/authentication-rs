@@ -20,7 +20,7 @@
 mod user_permission;
 mod new_user_permission;
 
-#[cfg(test)]
+#[cfg(feature = "test")]
 pub mod test_helper;
 
 pub use self::user_permission::UserPermission;

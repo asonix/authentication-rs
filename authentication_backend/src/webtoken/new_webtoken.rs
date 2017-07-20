@@ -55,7 +55,7 @@ impl NewWebtoken {
 
 #[cfg(test)]
 mod tests {
-    use models::test_helper::with_authenticated;
+    use user_test_helper::with_authenticated;
     use super::*;
 
     #[test]

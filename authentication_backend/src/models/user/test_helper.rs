@@ -33,6 +33,12 @@ pub fn teardown(u_id: i32) -> () {
     let _ = diesel::delete(users.filter(id.eq(u_id))).execute(CONFIG.db().unwrap().conn());
 }
 
+pub fn teardown_by_name(u_name: &str) -> () {
+    use schema::users::dsl::{users, username};
+
+    let _ = diesel::delete(users.filter(username.eq(u_name))).execute(CONFIG.db().unwrap().conn());
+}
+
 pub fn with_new_user<T>(test: T) -> ()
 where
     T: FnOnce(NewUser) -> () + panic::UnwindSafe,

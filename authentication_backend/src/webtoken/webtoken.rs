@@ -75,7 +75,7 @@ impl Webtoken {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use models::test_helper::with_authenticated;
+    use user_test_helper::with_authenticated;
 
     #[test]
     fn create_creates_webtoken() {

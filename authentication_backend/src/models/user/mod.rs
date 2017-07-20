@@ -25,7 +25,7 @@ mod authenticated_this_session;
 mod new_user;
 mod helpers;
 
-#[cfg(test)]
+#[cfg(feature = "test")]
 pub mod test_helper;
 
 pub use self::user_trait::UserTrait;

@@ -23,5 +23,5 @@ mod new_permission;
 pub use self::permission::Permission;
 pub use self::new_permission::NewPermission;
 
-#[cfg(test)]
+#[cfg(feature = "test")]
 pub mod test_helper;

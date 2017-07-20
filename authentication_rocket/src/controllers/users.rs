@@ -95,3 +95,62 @@ where
 
     Ok(AuthResponse::empty("Permission revoked"))
 }
+
+#[cfg(test)]
+mod tests {
+    use authentication_backend::Authenticatable;
+    use authentication_backend::user_test_helper::teardown_by_name;
+    use authentication_backend::test_helper::generate_string;
+    use std::panic;
+    use super::*;
+
+    #[test]
+    fn sign_up_signs_up_new_user() {
+        test_wrapper(|username| {
+            let auth = Authenticatable::UserAndPass {
+                username: username,
+                password: "Testp4ss$.",
+            };
+
+            let user = sign_up(&auth);
+
+            assert!(user.is_ok(), "Failed to sign in user");
+        });
+    }
+
+    #[test]
+    fn sign_up_with_bad_username_doesnt_sign_up_user() {
+        let auth = Authenticatable::UserAndPass {
+            username: "",
+            password: "Testp4ss$.",
+        };
+
+        let user = sign_up(&auth);
+
+        assert!(!user.is_ok(), "Signed up user with empty username");
+    }
+
+    #[test]
+    fn sign_up_with_bad_password_doesnt_sign_up_user() {
+        test_wrapper(|username| {
+            let auth = Authenticatable::UserAndPass {
+                username: username,
+                password: "Testpass$.",
+            };
+
+            let user = sign_up(&auth);
+
+            assert!(!user.is_ok(), "Failed to sign in user");
+        });
+    }
+
+    fn test_wrapper<T>(test: T) -> ()
+    where
+        T: FnOnce(&str) -> () + panic::UnwindSafe,
+    {
+        let username = generate_string();
+        let result = panic::catch_unwind(|| test(&username));
+        teardown_by_name(&username);
+        result.unwrap();
+    }
+}

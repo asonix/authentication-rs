@@ -22,8 +22,12 @@ mod verification_code;
 mod permission;
 mod user_permission;
 
-#[cfg(test)]
-pub use self::user::test_helper;
+#[cfg(feature = "test")]
+pub use self::user::test_helper as user_test_helper;
+#[cfg(feature = "test")]
+pub use self::user_permission::test_helper as user_permission_test_helper;
+#[cfg(feature = "test")]
+pub use self::permission::test_helper as permission_test_helper;
 
 pub use self::user::{Admin, Authenticated, AuthenticatedThisSession, User, UserTrait};
 pub use self::verification_code::VerificationCode;

@@ -55,7 +55,13 @@ pub use error::{Error, BcryptError, DbError, DbErrorKind, JWTError, JWTErrorKind
 pub use webtoken::Webtoken;
 pub use authenticatable::{Authenticatable, ToAuth};
 
-#[cfg(test)]
+#[cfg(feature = "test")]
+pub use self::models::user_test_helper;
+#[cfg(feature = "test")]
+pub use self::models::user_permission_test_helper;
+#[cfg(feature = "test")]
+pub use self::models::permission_test_helper;
+#[cfg(feature = "test")]
 pub mod test_helper;
 
 lazy_static! {

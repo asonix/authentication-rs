@@ -20,3 +20,12 @@ lazy_static = "0.2"
 rand = "0.3"
 regex = "0.2"
 chrono = "0.4"
+
+[features]
+default = []
+test = []
+
+[dev-dependencies.authentication_backend]
+path = "."
+version = "*"
+features = ["test"]

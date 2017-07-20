@@ -21,7 +21,7 @@ use std::panic;
 use jwt::{Header, Algorithm};
 use CONFIG;
 use super::claims::Claims;
-use models::test_helper::with_authenticated;
+use user_test_helper::with_authenticated;
 
 pub fn with_claims<T>(sub: &str, test: T) -> ()
 where
