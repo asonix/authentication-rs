@@ -26,3 +26,27 @@ pub fn renew(renewal_token: &str) -> Response {
 
     Ok(AuthResponse::new("Renewed", webtoken))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use authentication_backend::webtoken_test_helper::with_token;
+
+    #[test]
+    fn renew_renews_tokens() {
+        with_token("renewal", |token| {
+            let result = renew(token);
+
+            assert!(result.is_ok(), "Failed to renew token");
+        });
+    }
+
+    #[test]
+    fn renew_fails_with_bad_token() {
+        with_token("invalid", |token| {
+            let result = renew(token);
+
+            assert!(!result.is_ok(), "Renewed bad token");
+        });
+    }
+}
