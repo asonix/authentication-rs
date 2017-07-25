@@ -17,6 +17,12 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+extern crate futures;
+extern crate futures_cpupool;
+
+use futures::Future;
+use futures::future::{FutureResult, IntoFuture};
+use futures_cpupool::{CpuPool, CpuFuture};
 use std::collections::HashMap;
 use std::thread;
 use std::sync::{Arc, mpsc};
@@ -24,13 +30,14 @@ use std::any::Any;
 use std::fmt;
 use std::error::Error as StdError;
 
+#[derive(Clone)]
 pub struct Message<T: Send + Sync> {
     name: String,
     message: Option<T>,
     retries: i32,
 }
 
-impl<T: Send + Sync> Message<T> {
+impl<T: Send + Sync + Clone> Message<T> {
     pub fn new(name: String, message: Option<T>) -> Message<T> {
         Message::<T> {
             name: name,
@@ -49,6 +56,14 @@ impl<T: Send + Sync> Message<T> {
 
     pub fn retries(&self) -> i32 {
         self.retries
+    }
+
+    pub fn retry(&self) -> Self {
+        Message {
+            name: self.name.clone(),
+            message: self.message.clone(),
+            retries: self.retries - 1,
+        }
     }
 }
 
@@ -147,48 +162,59 @@ impl<T: Send + Sync> Config<T> {
     }
 }
 
-pub fn run<'a, T: Send + Sync + Clone>(config: InitialConfig<'static, T>) -> Config<T> {
+pub fn run<'a, T>(config: InitialConfig<'static, T>) -> Config<T>
+where
+    T: Send + Sync + Clone,
+{
     let (hook, receiver) = mpsc::channel::<Message<T>>();
     let thread_hook = hook.clone();
 
     let thread = thread::spawn(move || {
         let InitialConfig { handlers } = config.clone();
 
+        let pool = CpuPool::new_num_cpus();
+
         for msg in receiver {
             if msg.name() == "exit" {
                 break;
             }
 
+            println!("Received: '{}'", msg.name());
+
             let handler = match handlers.get(msg.name()) {
-                Some(ref handler) => *handler,
+                Some(handler) => handler,
                 None => {
                     println!("No handler for message '{}'", msg.name());
                     continue;
                 }
             };
 
-            if let Err(err) = handler(msg.message()) {
-                if msg.retries > 0 {
-                    println!(
-                        "Task for '{}' failed with error: '{}', retrying",
-                        msg.name(),
-                        err
-                    );
-                    thread_hook
-                        .send(Message {
-                            name: msg.name,
-                            message: msg.message,
-                            retries: msg.retries - 1,
-                        })
-                        .expect("Failed to requeue task");
-                } else {
-                    println!(
-                        "Task for '{}' failed permanently with error: '{}'",
-                        msg.name(),
-                        err
-                    );
-                }
-            };
+            let handler = handler.clone();
+            let thread_hook = thread_hook.clone();
+
+            // This future goes out of scope before it can run.
+            // Maybe try sending the future to a thread dedicated to waiting on futures
+            let cpu_future: CpuFuture<(), Error> = pool.spawn_fn(move || {
+                let value: FutureResult<(), Error> = handler(msg.message()).into_future();
+
+                value.or_else(move |err| {
+                    if msg.retries() > 0 {
+                        println!(
+                            "Task for '{}' failed with error: '{}', retrying",
+                            msg.name(),
+                            err
+                        );
+                        thread_hook.send(msg.retry())?;
+                    } else {
+                        println!(
+                            "Task for '{}' failed permanently with error: '{}'",
+                            msg.name(),
+                            err
+                        );
+                    }
+                    Ok(())
+                })
+            });
         }
 
         ()
