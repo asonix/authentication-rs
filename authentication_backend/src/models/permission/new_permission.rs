@@ -48,7 +48,7 @@ impl NewPermission {
     }
 
     fn validate_name(name: &str) -> Result<&str> {
-        if name.len() > 0 {
+        if !name.is_empty() {
             Ok(name)
         } else {
             Err(InputError(PermissionName))

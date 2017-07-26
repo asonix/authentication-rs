@@ -17,11 +17,92 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod permission;
 mod new_permission;
 
-pub use self::permission::Permission;
 pub use self::new_permission::NewPermission;
 
 #[cfg(feature = "test")]
 pub mod test_helper;
+
+use CONFIG;
+use schema::permissions;
+use error::Result;
+
+#[derive(Debug, PartialEq, Queryable, Identifiable, AsChangeset, Associations)]
+pub struct Permission {
+    id: i32,
+    name: String,
+}
+
+impl Permission {
+    pub fn create(name: &str) -> Result<Self> {
+        let new_permission = NewPermission::new(name)?;
+
+        new_permission.save()
+    }
+
+    pub fn id(&self) -> i32 {
+        self.id
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn find(permission: &str) -> Result<Self> {
+        use diesel::prelude::*;
+        use schema::permissions::dsl::*;
+
+        let db = CONFIG.db()?;
+
+        let permission = permissions
+            .filter(name.eq(permission))
+            .first::<Permission>(db.conn())?;
+
+        Ok(permission)
+    }
+
+    pub fn delete(permission: &str) -> Result<()> {
+        use diesel::delete;
+        use diesel::prelude::*;
+        use schema::permissions::dsl::*;
+
+        let db = CONFIG.db()?;
+
+        let _ = delete(permissions.filter(name.eq(permission))).execute(db.conn());
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test_helper::generate_string;
+    use models::permission::test_helper::teardown;
+
+    #[test]
+    fn create_creates_permission() {
+        let result = Permission::create(&generate_string());
+
+        assert!(result.is_ok(), "Failed to create permission");
+
+        if let Ok(permission) = result {
+            teardown(permission.id);
+        }
+    }
+
+    #[test]
+    fn find_finds_admin_permission() {
+        let result = Permission::find("admin");
+
+        assert!(result.is_ok(), "admin permission not found");
+    }
+
+    #[test]
+    fn find_doesnt_find_fake_permission() {
+        let result = Permission::find("This is not a permission");
+
+        assert!(!result.is_ok(), "Fake permission found");
+    }
+}

@@ -37,18 +37,18 @@ impl<'a> ToAuth for Authenticatable<'a> {
     fn to_auth(&self) -> Authenticatable {
         match *self {
             Authenticatable::UserAndPass {
-                username: ref u,
-                password: ref p,
+                username: u,
+                password: p,
             } => Authenticatable::UserAndPass {
                 username: u,
                 password: p,
             },
-            Authenticatable::UserToken { user_token: ref u } => Authenticatable::UserToken {
+            Authenticatable::UserToken { user_token: u } => Authenticatable::UserToken {
                 user_token: u,
             },
             Authenticatable::UserTokenAndPass {
-                user_token: ref u,
-                password: ref p,
+                user_token: u,
+                password: p,
             } => Authenticatable::UserTokenAndPass {
                 user_token: u,
                 password: p,

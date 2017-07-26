@@ -17,11 +17,199 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod user_permission;
 mod new_user_permission;
 
 #[cfg(feature = "test")]
 pub mod test_helper;
 
-pub use self::user_permission::UserPermission;
 pub use self::new_user_permission::NewUserPermission;
+
+use diesel;
+use diesel::prelude::*;
+use CONFIG;
+use error::Result;
+use schema::user_permissions;
+use models::user::{User, UserTrait};
+use models::permission::Permission;
+
+#[derive(Debug, PartialEq, Queryable, Identifiable, Associations)]
+#[belongs_to(User)]
+#[belongs_to(Permission)]
+pub struct UserPermission {
+    id: i32,
+    user_id: i32,
+    permission_id: i32,
+}
+
+impl UserPermission {
+    pub fn id(&self) -> i32 {
+        self.id
+    }
+
+    pub fn user_id(&self) -> i32 {
+        self.user_id
+    }
+
+    pub fn permission_id(&self) -> i32 {
+        self.permission_id
+    }
+
+    pub fn create<T>(user: &T, permission: &Permission) -> Result<Self>
+    where
+        T: UserTrait,
+    {
+        let new_user_permission = NewUserPermission::new(user, permission);
+
+        new_user_permission.save()
+    }
+
+    pub fn has_permission<T>(user: &T, permission: &Permission) -> bool
+    where
+        T: UserTrait,
+    {
+        use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
+
+        let db = match CONFIG.db() {
+            Ok(db) => db,
+            _ => return false,
+        };
+
+        let user_permission = user_permissions
+            .filter(user_id.eq(user.id()))
+            .filter(permission_id.eq(permission.id()))
+            .first::<UserPermission>(db.conn());
+
+        match user_permission {
+            Ok(_permission) => true,
+            _ => false,
+        }
+    }
+
+    pub fn get_permissions<T>(user: &T) -> Result<Vec<Permission>>
+    where
+        T: UserTrait,
+    {
+        use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
+        use schema::permissions::dsl::{id, permissions};
+
+        let db = CONFIG.db()?;
+
+        let results: Vec<(UserPermission, Permission)> =
+            user_permissions
+                .inner_join::<permissions>(permissions)
+                .filter(permission_id.eq(id))
+                .filter(user_id.eq(user.id()))
+                .load::<(UserPermission, Permission)>(db.conn())?;
+
+        Ok(
+            results
+                .into_iter()
+                .map(|(_, permission)| permission)
+                .collect(),
+        )
+    }
+
+    pub fn get_users(permission: &Permission) -> Result<Vec<User>> {
+        use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
+        use schema::users::dsl::{id, users};
+
+        let db = CONFIG.db()?;
+
+        let results: Vec<(UserPermission, User)> = user_permissions
+            .inner_join::<users>(users)
+            .filter(user_id.eq(id))
+            .filter(permission_id.eq(permission.id()))
+            .load::<(UserPermission, User)>(db.conn())?;
+
+        Ok(results.into_iter().map(|(_, user)| user).collect())
+    }
+
+    pub fn delete<T>(user: &T, permission: &Permission) -> Result<()>
+    where
+        T: UserTrait,
+    {
+        use schema::user_permissions::dsl::{user_permissions, user_id, permission_id};
+
+        let db = CONFIG.db()?;
+
+        diesel::delete(user_permissions.filter(user_id.eq(user.id())).filter(
+            permission_id.eq(permission.id()),
+        )).execute(db.conn())?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use models::user::test_helper::with_user;
+    use models::permission::Permission;
+    use models::permission::test_helper::with_permission;
+    use models::user_permission::test_helper::with_user_permission;
+
+    #[test]
+    fn new_user_is_not_admin() {
+        with_user(|user| {
+            let admin = Permission::find("admin").unwrap();
+
+            let result = UserPermission::has_permission(&user, &admin);
+
+            assert!(!result, "New User is Admin");
+        });
+    }
+
+    #[test]
+    fn can_make_user_admin() {
+        with_user(|user| {
+            let admin = Permission::find("admin").unwrap();
+
+            let _ = UserPermission::create(&user, &admin).unwrap();
+
+            let result = UserPermission::has_permission(&user, &admin);
+
+            assert!(result, "User can become admin");
+        });
+    }
+
+    #[test]
+    fn get_permissions_gets_permissions() {
+        with_user_permission(|user, permission, _user_permission| {
+            let result = UserPermission::get_permissions(&user);
+
+            assert!(result.is_ok(), "Failed to get Permissions for User");
+
+            let permissions = result.unwrap();
+
+            assert_eq!(
+                permissions,
+                vec![permission],
+                "Retrieved permissions not accurate"
+            );
+        });
+    }
+
+    #[test]
+    fn get_users_gets_users() {
+        with_user_permission(|user, permission, _user_permission| {
+            let result = UserPermission::get_users(&permission);
+
+            assert!(result.is_ok(), "Failed to get Users with Permission");
+
+            let users = result.unwrap();
+
+            assert_eq!(users, vec![user], "Retrieved users not accurate");
+        });
+    }
+
+    #[test]
+    fn create_creates_user_permission() {
+        with_user(|user| {
+            with_permission(|permission| {
+                let result = UserPermission::create(&user, &permission);
+
+                assert!(result.is_ok(), "Failed to create UserPermission");
+            });
+        });
+    }
+}

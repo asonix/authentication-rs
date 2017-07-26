@@ -38,36 +38,30 @@ impl Error {
 
     fn db_kind_status(err: &DbErrorKind) -> Status {
         match *err {
-            DbErrorKind::UniqueViolation => Status::BadRequest,
+            DbErrorKind::UniqueViolation |
             DbErrorKind::ForeignKeyViolation => Status::BadRequest,
-            DbErrorKind::UnableToSendCommand => Status::InternalServerError,
             _ => Status::InternalServerError,
         }
     }
 
     fn db_status(err: &DbError) -> Status {
         match *err {
-            DbError::InvalidCString(_) => Status::InternalServerError,
             DbError::DatabaseError(ref err, _) => Error::db_kind_status(err),
             DbError::NotFound => Status::BadRequest,
-            DbError::QueryBuilderError(_) => Status::InternalServerError,
-            DbError::DeserializationError(_) => Status::InternalServerError,
-            DbError::SerializationError(_) => Status::InternalServerError,
             _ => Status::InternalServerError,
         }
     }
 
     fn jwt_status(err: &JWTError) -> Status {
         match *err.kind() {
-            JWTErrorKind::InvalidToken => Status::BadRequest,
+            JWTErrorKind::InvalidToken |
             JWTErrorKind::InvalidSignature => Status::BadRequest,
-            JWTErrorKind::InvalidKey => Status::InternalServerError,
-            JWTErrorKind::ExpiredSignature => Status::Unauthorized,
-            JWTErrorKind::InvalidIssuer => Status::Unauthorized,
-            JWTErrorKind::InvalidAudience => Status::Unauthorized,
-            JWTErrorKind::InvalidSubject => Status::Unauthorized,
-            JWTErrorKind::InvalidIssuedAt => Status::Unauthorized,
-            JWTErrorKind::ImmatureSignature => Status::Unauthorized,
+            JWTErrorKind::ExpiredSignature |
+            JWTErrorKind::InvalidIssuer |
+            JWTErrorKind::InvalidAudience |
+            JWTErrorKind::InvalidSubject |
+            JWTErrorKind::InvalidIssuedAt |
+            JWTErrorKind::ImmatureSignature |
             JWTErrorKind::InvalidAlgorithm => Status::Unauthorized,
             _ => Status::InternalServerError,
         }
@@ -93,11 +87,11 @@ impl<'r> Responder<'r> for Error {
             BackendError::DbError(ref err) => Error::db_status(err),
             BackendError::InputError(_) => Status::BadRequest,
             BackendError::JWTError(ref err) => Error::jwt_status(err),
-            BackendError::DbTimeout => Status::InternalServerError,
-            BackendError::IOError => Status::InternalServerError,
-            BackendError::ParseError => Status::InternalServerError,
-            BackendError::PasswordMatchError => Status::Unauthorized,
-            BackendError::PermissionError => Status::Unauthorized,
+            BackendError::DbTimeout | BackendError::IOError | BackendError::ParseError => {
+                Status::InternalServerError
+            }
+            BackendError::PasswordMatchError |
+            BackendError::PermissionError |
             BackendError::UserNotVerifiedError => Status::Unauthorized,
         };
 

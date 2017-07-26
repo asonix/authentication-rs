@@ -24,7 +24,7 @@ use auth_response::AuthResponse;
 use authentication_background::Message;
 use std::sync::mpsc::Sender;
 
-pub fn sign_up<T>(auth: &T, sender: Sender<Message<i32>>) -> Response
+pub fn sign_up<T>(auth: &T, sender: &Sender<Message<i32>>) -> Response
 where
     T: ToAuth,
 {
@@ -66,7 +66,7 @@ where
     if user.username() == target_user {
         user.delete()?;
     } else if let Ok(admin) = Admin::from_authenticated(user) {
-        admin.delete_user(&target_user)?;
+        admin.delete_user(target_user)?;
     } else {
         return Err(BackendError::PermissionError.into());
     }
@@ -81,9 +81,9 @@ where
     let user = User::authenticate(auth)?;
     let admin = Admin::from_authenticated(user)?;
 
-    let target_user = User::find_by_name(&target_user)?;
+    let target_user = User::find_by_name(target_user)?;
 
-    admin.give_permission(&target_user, &permission)?;
+    admin.give_permission(&target_user, permission)?;
 
     Ok(AuthResponse::empty("Permission granted"))
 }
@@ -95,9 +95,9 @@ where
     let user = User::authenticate(auth)?;
     let admin = Admin::from_authenticated(user)?;
 
-    let target_user = User::find_by_name(&target_user)?;
+    let target_user = User::find_by_name(target_user)?;
 
-    admin.revoke_permission(&target_user, &permission)?;
+    admin.revoke_permission(&target_user, permission)?;
 
     Ok(AuthResponse::empty("Permission revoked"))
 }

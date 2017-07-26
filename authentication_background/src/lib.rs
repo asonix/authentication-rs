@@ -129,9 +129,15 @@ where
     handlers: HashMap<String, SafeHandler<'a, T>>,
 }
 
+impl<'a, T: Send + Sync> Default for Config<'a, T> {
+    fn default() -> Self {
+        Config { handlers: HashMap::new() }
+    }
+}
+
 impl<'a, T: Send + Sync> Config<'a, T> {
     pub fn new() -> Self {
-        Config { handlers: HashMap::new() }
+        Default::default()
     }
 
     pub fn register_handler(
@@ -165,7 +171,7 @@ impl<T: Send + Sync> Hooks<T> {
     }
 }
 
-pub fn run<'a, T>(config: Config<'static, T>) -> Hooks<T>
+pub fn run<T>(config: Config<'static, T>) -> Hooks<T>
 where
     T: Send + Sync + Clone,
 {
@@ -237,12 +243,12 @@ where
     }
 }
 
-pub fn cleanup<T: Send + Sync>(config: Hooks<T>) -> Result<(), Error> {
+pub fn cleanup<T: Send + Sync>(hooks: Hooks<T>) -> Result<(), Error> {
     let Hooks {
         other_handle,
         handle,
         hook,
-    } = config;
+    } = hooks;
 
     hook.send(Message {
         name: "exit".to_owned(),

@@ -96,7 +96,7 @@ impl Admin {
             return Err(Error::UserNotVerifiedError);
         }
 
-        let _ = VerificationCode::delete_by_user_id(user.id())?;
+        VerificationCode::delete_by_user_id(user.id())?;
 
         Ok(())
     }

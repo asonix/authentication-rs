@@ -36,7 +36,7 @@ pub fn sign_up(create_user: Json<Auth>, sender: State<Mutex<Sender<Message<i32>>
         Err(_) => return Err(BackendError::IOError.into()),
     };
 
-    users::sign_up(&create_user.0, sender)
+    users::sign_up(&create_user.0, &sender)
 }
 
 // LOG IN

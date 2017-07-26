@@ -45,7 +45,7 @@ fn other_job(item: &Option<i32>) -> Result<(), Error> {
 }
 
 fn main() {
-    let mut config: InitialConfig<i32> = InitialConfig::new();
+    let mut config: Config<i32> = Config::new();
 
     config
         .register_handler("print".to_owned(), Arc::new(print_job))
@@ -55,9 +55,9 @@ fn main() {
         .register_handler("other".to_owned(), Arc::new(other_job))
         .unwrap();
 
-    let config = run(config);
+    let hooks = run(config);
 
-    let sender = config.hook();
+    let sender = hooks.hook();
 
     for num in 0..5 {
         sender
@@ -77,5 +77,5 @@ fn main() {
 
     // thread::sleep(Duration::from_secs(1));
 
-    cleanup(config).unwrap();
+    cleanup(hooks).unwrap();
 }

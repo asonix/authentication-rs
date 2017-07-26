@@ -49,7 +49,7 @@ pub fn validate_password(password: &str) -> Result<&str> {
         error_vec.push(NoLowercase);
     }
 
-    if error_vec.len() == 0 {
+    if error_vec.is_empty() {
         Ok(password)
     } else {
         Err(InputError(Password(error_vec)))
@@ -59,11 +59,11 @@ pub fn validate_password(password: &str) -> Result<&str> {
 pub fn validate_username(username: &str) -> Result<&str> {
     let mut error_vec: Vec<UsernameErrorKind> = Vec::new();
 
-    if username.len() == 0 {
+    if username.is_empty() {
         error_vec.push(Blank)
     }
 
-    if error_vec.len() == 0 {
+    if error_vec.is_empty() {
         Ok(username)
     } else {
         Err(InputError(Username(error_vec)))
