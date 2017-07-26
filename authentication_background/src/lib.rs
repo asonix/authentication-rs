@@ -226,12 +226,10 @@ where
     });
 
     let other_thread = thread::spawn(move || {
-        // I want to consume the item in the stream as it is produced
-        // Items that are produced by streams have been resolved already
-        // I don't want to use memory to store a bunch of consumed futures
-        stream::futures_unordered(p).map(|_| {
-            println!("Waited on future");
-        });
+        let _: Vec<Result<(), Error>> = stream::futures_unordered(p)
+            .filter(|_| false)
+            .wait()
+            .collect();
     });
 
     Config::<T> {
