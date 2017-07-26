@@ -21,6 +21,8 @@ extern crate authentication_background;
 
 use authentication_background::*;
 use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 
 fn print_job(item: &Option<i32>) -> Result<(), Error> {
     if let Some(ref value) = *item {
@@ -72,6 +74,8 @@ fn main() {
     sender
         .send(Message::new("unused".to_owned(), None))
         .unwrap();
+
+    thread::sleep(Duration::from_secs(1));
 
     cleanup(config).unwrap();
 }

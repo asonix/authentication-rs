@@ -21,6 +21,8 @@ extern crate futures;
 extern crate futures_cpupool;
 
 use futures::Future;
+use futures::Stream;
+use futures::stream;
 use futures::future::{FutureResult, IntoFuture};
 use futures_cpupool::{CpuPool, CpuFuture};
 use std::collections::HashMap;
@@ -154,6 +156,7 @@ impl<'a, T: Send + Sync> InitialConfig<'a, T> {
 pub struct Config<T: Send + Sync> {
     hook: mpsc::Sender<Message<T>>,
     handle: thread::JoinHandle<()>,
+    other_handle: thread::JoinHandle<()>,
 }
 
 impl<T: Send + Sync> Config<T> {
@@ -169,6 +172,8 @@ where
     let (hook, receiver) = mpsc::channel::<Message<T>>();
     let thread_hook = hook.clone();
 
+    let (c, p) = mpsc::channel::<CpuFuture<(), Error>>();
+
     let thread = thread::spawn(move || {
         let InitialConfig { handlers } = config.clone();
 
@@ -178,8 +183,6 @@ where
             if msg.name() == "exit" {
                 break;
             }
-
-            println!("Received: '{}'", msg.name());
 
             let handler = match handlers.get(msg.name()) {
                 Some(handler) => handler,
@@ -215,19 +218,35 @@ where
                     Ok(())
                 })
             });
+
+            c.send(cpu_future).expect("Failed to send future");
         }
 
         ()
     });
 
+    let other_thread = thread::spawn(move || {
+        // I want to consume the item in the stream as it is produced
+        // Items that are produced by streams have been resolved already
+        // I don't want to use memory to store a bunch of consumed futures
+        stream::futures_unordered(p).map(|_| {
+            println!("Waited on future");
+        });
+    });
+
     Config::<T> {
         hook: hook,
         handle: thread,
+        other_handle: other_thread,
     }
 }
 
 pub fn cleanup<T: Send + Sync>(config: Config<T>) -> Result<(), Error> {
-    let Config { handle, hook } = config;
+    let Config {
+        other_handle,
+        handle,
+        hook,
+    } = config;
 
     hook.send(Message {
         name: "exit".to_owned(),
@@ -236,6 +255,7 @@ pub fn cleanup<T: Send + Sync>(config: Config<T>) -> Result<(), Error> {
     })?;
 
     handle.join()?;
+    other_handle.join()?;
 
     Ok(())
 }
