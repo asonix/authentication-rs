@@ -59,13 +59,15 @@ fn main() {
 
     let sender = hooks.hook();
 
-    for num in 0..5 {
+    let mid = 5;
+
+    for num in 0..mid {
         sender
             .send(Message::new("print".to_owned(), Some(num)))
             .unwrap();
     }
 
-    for num in 5..10 {
+    for num in mid..(mid * 2) {
         sender
             .send(Message::new("other".to_owned(), Some(num)))
             .unwrap();
@@ -77,5 +79,5 @@ fn main() {
 
     // thread::sleep(Duration::from_secs(1));
 
-    cleanup(hooks).unwrap();
+    hooks.cleanup().unwrap();
 }

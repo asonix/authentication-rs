@@ -25,151 +25,18 @@ use futures::Stream;
 use futures::stream;
 use futures::future::{FutureResult, IntoFuture};
 use futures_cpupool::{CpuPool, CpuFuture};
-use std::collections::HashMap;
 use std::thread;
-use std::sync::{Arc, mpsc};
-use std::any::Any;
-use std::fmt;
-use std::error::Error as StdError;
+use std::sync::mpsc;
 
-#[derive(Clone)]
-pub struct Message<T: Send + Sync> {
-    name: String,
-    message: Option<T>,
-    retries: i32,
-}
+mod message;
+mod error;
+mod config;
+mod hooks;
 
-impl<T: Send + Sync + Clone> Message<T> {
-    pub fn new(name: String, message: Option<T>) -> Message<T> {
-        Message::<T> {
-            name: name,
-            message: message,
-            retries: 10,
-        }
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn message(&self) -> &Option<T> {
-        &self.message
-    }
-
-    pub fn retries(&self) -> i32 {
-        self.retries
-    }
-
-    pub fn retry(&self) -> Self {
-        Message {
-            name: self.name.clone(),
-            message: self.message.clone(),
-            retries: self.retries - 1,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum Error {
-    ProcessingError(String),
-    DuplicateHandler(String),
-    ExitHandler,
-    SendError,
-    JoinError,
-}
-
-impl StdError for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::ProcessingError(_) => "Error processing job",
-            Error::DuplicateHandler(_) => "Handler with that name already exists",
-            Error::ExitHandler => "Cannot register handler with reserved anme 'exit'",
-            Error::SendError => "Could not send data",
-            Error::JoinError => "Could not join thread",
-        }
-    }
-
-    fn cause(&self) -> Option<&StdError> {
-        None
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::ProcessingError(ref s) => write!(f, "Error processing data: '{}'", s),
-            Error::DuplicateHandler(ref s) => write!(f, "Handler already exists for '{}'", s),
-            Error::ExitHandler => write!(f, "Cannot register handler with reserved name 'exit'"),
-            Error::SendError => write!(f, "Could not send data to thread"),
-            Error::JoinError => write!(f, "Could not join thread"),
-        }
-    }
-}
-
-impl<T: Send + Sync> From<mpsc::SendError<Message<T>>> for Error {
-    fn from(_err: mpsc::SendError<Message<T>>) -> Error {
-        Error::SendError
-    }
-}
-
-impl From<Box<Any + Send>> for Error {
-    fn from(_err: Box<Any + Send>) -> Error {
-        Error::JoinError
-    }
-}
-
-type Handler<'a, T> = Fn(&Option<T>) -> Result<(), Error> + Send + Sync + 'a;
-type SafeHandler<'a, T> = Arc<Handler<'a, T>>;
-
-#[derive(Clone)]
-pub struct Config<'a, T: Send + Sync>
-where
-    T: 'a,
-{
-    handlers: HashMap<String, SafeHandler<'a, T>>,
-}
-
-impl<'a, T: Send + Sync> Default for Config<'a, T> {
-    fn default() -> Self {
-        Config { handlers: HashMap::new() }
-    }
-}
-
-impl<'a, T: Send + Sync> Config<'a, T> {
-    pub fn new() -> Self {
-        Default::default()
-    }
-
-    pub fn register_handler(
-        &mut self,
-        name: String,
-        handler: SafeHandler<'a, T>,
-    ) -> Result<(), Error> {
-        if &name == "exit" {
-            return Err(Error::ExitHandler);
-        }
-
-        if self.handlers.contains_key(&name) {
-            return Err(Error::DuplicateHandler(name));
-        };
-
-        self.handlers.insert(name, handler);
-
-        Ok(())
-    }
-}
-
-pub struct Hooks<T: Send + Sync> {
-    hook: mpsc::Sender<Message<T>>,
-    handle: thread::JoinHandle<()>,
-    other_handle: thread::JoinHandle<()>,
-}
-
-impl<T: Send + Sync> Hooks<T> {
-    pub fn hook(&self) -> mpsc::Sender<Message<T>> {
-        self.hook.clone()
-    }
-}
+pub use message::Message;
+pub use error::Error;
+pub use config::Config;
+pub use hooks::Hooks;
 
 pub fn run<T>(config: Config<'static, T>) -> Hooks<T>
 where
@@ -181,7 +48,7 @@ where
     let (c, p) = mpsc::channel::<CpuFuture<(), Error>>();
 
     let thread = thread::spawn(move || {
-        let Config { handlers } = config.clone();
+        let handlers = config.clone().handlers();
 
         let pool = CpuPool::new_num_cpus();
 
@@ -236,30 +103,7 @@ where
             .collect();
     });
 
-    Hooks::<T> {
-        hook: hook,
-        handle: thread,
-        other_handle: other_thread,
-    }
-}
-
-pub fn cleanup<T: Send + Sync>(hooks: Hooks<T>) -> Result<(), Error> {
-    let Hooks {
-        other_handle,
-        handle,
-        hook,
-    } = hooks;
-
-    hook.send(Message {
-        name: "exit".to_owned(),
-        message: None,
-        retries: 0,
-    })?;
-
-    handle.join()?;
-    other_handle.join()?;
-
-    Ok(())
+    Hooks::new(hook, thread, other_thread)
 }
 
 #[cfg(test)]
@@ -272,7 +116,7 @@ mod tests {
 
         let hooks = run(config);
 
-        let result = cleanup(hooks);
+        let result = hooks.cleanup();
 
         assert!(result.is_ok(), "Failed to perform job lifecycle");
     }

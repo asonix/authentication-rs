@@ -68,7 +68,7 @@ pub fn launch() -> () {
         .manage(Mutex::new(hooks.hook()))
         .launch();
 
-    authentication_background::cleanup(hooks).unwrap();
+    hooks.cleanup().unwrap();
 
     panic!("Launch failed! Error: {}", error)
 }
