@@ -195,8 +195,6 @@ where
             let handler = handler.clone();
             let thread_hook = thread_hook.clone();
 
-            // This future goes out of scope before it can run.
-            // Maybe try sending the future to a thread dedicated to waiting on futures
             let cpu_future: CpuFuture<(), Error> = pool.spawn_fn(move || {
                 let value: FutureResult<(), Error> = handler(msg.message()).into_future();
 
