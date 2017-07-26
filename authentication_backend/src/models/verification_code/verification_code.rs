@@ -46,6 +46,18 @@ impl VerificationCode {
         new_verification_code.save()
     }
 
+    pub fn find_by_user_id(u_id: i32) -> Result<Self> {
+        use schema::verification_codes::dsl::{verification_codes, user_id};
+
+        let db = CONFIG.db()?;
+
+        let verification_code = verification_codes
+            .filter(user_id.eq(u_id))
+            .first::<VerificationCode>(db.conn())?;
+
+        Ok(verification_code)
+    }
+
     pub fn id(&self) -> i32 {
         self.id
     }
@@ -75,6 +87,25 @@ mod tests {
     use super::*;
     use models::user::UserTrait;
     use models::user::test_helper::with_user;
+
+    #[test]
+    fn find_by_user_id_finds_verification_code() {
+        with_user(|user| {
+            let result = VerificationCode::find_by_user_id(UserTrait::id(&user));
+
+            assert!(
+                result.is_ok(),
+                "Failed to find verification_code for unverified user"
+            );
+        });
+    }
+
+    #[test]
+    fn find_by_user_id_fails_with_bad_id() {
+        let result = VerificationCode::find_by_user_id(-1);
+
+        assert!(!result.is_ok(), "Found verification_code for bad user id");
+    }
 
     #[test]
     fn delete_by_user_id_deletes_verification_code() {
