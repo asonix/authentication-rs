@@ -122,16 +122,16 @@ type Handler<'a, T> = Fn(&Option<T>) -> Result<(), Error> + Send + Sync + 'a;
 type SafeHandler<'a, T> = Arc<Handler<'a, T>>;
 
 #[derive(Clone)]
-pub struct InitialConfig<'a, T: Send + Sync>
+pub struct Config<'a, T: Send + Sync>
 where
     T: 'a,
 {
     handlers: HashMap<String, SafeHandler<'a, T>>,
 }
 
-impl<'a, T: Send + Sync> InitialConfig<'a, T> {
+impl<'a, T: Send + Sync> Config<'a, T> {
     pub fn new() -> Self {
-        InitialConfig { handlers: HashMap::new() }
+        Config { handlers: HashMap::new() }
     }
 
     pub fn register_handler(
@@ -153,19 +153,19 @@ impl<'a, T: Send + Sync> InitialConfig<'a, T> {
     }
 }
 
-pub struct Config<T: Send + Sync> {
+pub struct Hooks<T: Send + Sync> {
     hook: mpsc::Sender<Message<T>>,
     handle: thread::JoinHandle<()>,
     other_handle: thread::JoinHandle<()>,
 }
 
-impl<T: Send + Sync> Config<T> {
+impl<T: Send + Sync> Hooks<T> {
     pub fn hook(&self) -> mpsc::Sender<Message<T>> {
         self.hook.clone()
     }
 }
 
-pub fn run<'a, T>(config: InitialConfig<'static, T>) -> Config<T>
+pub fn run<'a, T>(config: Config<'static, T>) -> Hooks<T>
 where
     T: Send + Sync + Clone,
 {
@@ -175,7 +175,7 @@ where
     let (c, p) = mpsc::channel::<CpuFuture<(), Error>>();
 
     let thread = thread::spawn(move || {
-        let InitialConfig { handlers } = config.clone();
+        let Config { handlers } = config.clone();
 
         let pool = CpuPool::new_num_cpus();
 
@@ -230,15 +230,15 @@ where
             .collect();
     });
 
-    Config::<T> {
+    Hooks::<T> {
         hook: hook,
         handle: thread,
         other_handle: other_thread,
     }
 }
 
-pub fn cleanup<T: Send + Sync>(config: Config<T>) -> Result<(), Error> {
-    let Config {
+pub fn cleanup<T: Send + Sync>(config: Hooks<T>) -> Result<(), Error> {
+    let Hooks {
         other_handle,
         handle,
         hook,
@@ -262,11 +262,11 @@ mod tests {
 
     #[test]
     fn cycle_works() {
-        let config: InitialConfig<i32> = InitialConfig::new();
+        let config: Config<i32> = Config::new();
 
-        let config = run(config);
+        let hooks = run(config);
 
-        let result = cleanup(config);
+        let result = cleanup(hooks);
 
         assert!(result.is_ok(), "Failed to perform job lifecycle");
     }

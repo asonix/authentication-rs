@@ -21,12 +21,18 @@ use authentication_backend::Error as BackendError;
 use authentication_backend::{ToAuth, Admin, User, UserTrait};
 use routes::Response;
 use auth_response::AuthResponse;
+use authentication_background::Message;
+use std::sync::mpsc::Sender;
 
-pub fn sign_up<T>(auth: &T) -> Response
+pub fn sign_up<T>(auth: &T, sender: Sender<Message<i32>>) -> Response
 where
     T: ToAuth,
 {
     let user = User::create(auth)?;
+
+    match sender.send(Message::new("mail".to_owned(), Some(user.id()))) {
+        _ => (),
+    };
 
     Ok(AuthResponse::new("User created", user))
 }

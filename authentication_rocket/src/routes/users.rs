@@ -17,7 +17,12 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use authentication_backend::Error as BackendError;
+use authentication_background::Message;
 use rocket_contrib::Json;
+use rocket::State;
+use std::sync::Mutex;
+use std::sync::mpsc::Sender;
 use input_types::Auth;
 use controllers::users;
 use super::Response;
@@ -25,8 +30,13 @@ use super::Response;
 // SIGN UP
 
 #[post("/sign-up", format = "application/json", data = "<create_user>")]
-pub fn sign_up(create_user: Json<Auth>) -> Response {
-    users::sign_up(&create_user.0)
+pub fn sign_up(create_user: Json<Auth>, sender: State<Mutex<Sender<Message<i32>>>>) -> Response {
+    let sender = match sender.lock() {
+        Ok(sender) => sender.clone(),
+        Err(_) => return Err(BackendError::IOError.into()),
+    };
+
+    users::sign_up(&create_user.0, sender)
 }
 
 // LOG IN

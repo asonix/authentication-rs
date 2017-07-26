@@ -5,6 +5,7 @@ authors = ["Riley Trautman <asonix.dev@gmail.com>"]
 
 [dependencies]
 authentication_backend = { path = "../authentication_backend" }
+authentication_background = { path = "../authentication_background" }
 rocket = "0.3"
 rocket_codegen = "0.3"
 rocket_contrib = "0.3"

@@ -28,14 +28,27 @@ extern crate serde_json;
 extern crate rocket;
 extern crate rocket_contrib;
 extern crate authentication_backend;
+extern crate authentication_background;
 
 mod routes;
+mod jobs;
 mod controllers;
 mod error;
 mod auth_response;
 mod input_types;
 
+use std::sync::Mutex;
+
 pub fn launch() -> () {
+    let mut config: authentication_background::Config<i32> =
+        authentication_background::Config::new();
+
+    jobs::register_jobs(&mut config);
+
+    let config = config;
+
+    let hooks = authentication_background::run(config);
+
     let error = rocket::ignite()
         .mount(
             "/",
@@ -52,7 +65,10 @@ pub fn launch() -> () {
                 routes::permissions::delete,
             ],
         )
+        .manage(Mutex::new(hooks.hook()))
         .launch();
+
+    authentication_background::cleanup(hooks).unwrap();
 
     panic!("Launch failed! Error: {}", error)
 }
