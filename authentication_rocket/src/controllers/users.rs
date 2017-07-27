@@ -21,10 +21,9 @@ use authentication_backend::Error as BackendError;
 use authentication_backend::{ToAuth, Admin, User, UserTrait};
 use routes::Response;
 use auth_response::AuthResponse;
-use authentication_background::Message;
-use std::sync::mpsc::Sender;
+use authentication_background::{Message, MsgSender};
 
-pub fn sign_up<T>(auth: &T, sender: &Sender<Message<i32>>) -> Response
+pub fn sign_up<T>(auth: &T, sender: &MsgSender<i32>) -> Response
 where
     T: ToAuth,
 {

@@ -38,21 +38,60 @@ pub use error::Error;
 pub use config::Config;
 pub use hooks::Hooks;
 
-pub fn run<T>(config: Config<'static, T>) -> Hooks<T>
+pub use config::SafeHandler;
+
+pub type MsgSender<T> = mpsc::Sender<Message<T>>;
+pub type MsgReceiver<T> = mpsc::Receiver<Message<T>>;
+
+type FutSender = mpsc::Sender<CpuFuture<(), Error>>;
+type FutReceiver = mpsc::Receiver<CpuFuture<(), Error>>;
+
+fn future_thread<T>(
+    pool: &CpuPool,
+    handler: SafeHandler<'static, T>,
+    msg: Message<T>,
+    msg_sender: MsgSender<T>,
+) -> CpuFuture<(), Error>
+where
+    T: 'static + Send + Sync + Clone,
+{
+    pool.spawn_fn(move || {
+        let value: FutureResult<(), Error> = handler(msg.message()).into_future();
+
+        value.or_else(move |err| {
+            if msg.retries() > 0 {
+                println!(
+                    "Task for '{}' failed with error: '{}', retrying",
+                    msg.name(),
+                    err
+                );
+                msg_sender.send(msg.retry())?;
+            } else {
+                println!(
+                    "Task for '{}' failed permanently with error: '{}'",
+                    msg.name(),
+                    err
+                );
+            }
+            Ok(())
+        })
+    })
+}
+
+fn manager_thread<T>(
+    config: Config<'static, T>,
+    msg_sender: MsgSender<T>,
+    msg_receiver: MsgReceiver<T>,
+    fut_sender: FutSender,
+) -> thread::JoinHandle<()>
 where
     T: Send + Sync + Clone,
 {
-    let (hook, receiver) = mpsc::channel::<Message<T>>();
-    let thread_hook = hook.clone();
-
-    let (c, p) = mpsc::channel::<CpuFuture<(), Error>>();
-
-    let thread = thread::spawn(move || {
-        let handlers = config.clone().handlers();
-
+    thread::spawn(move || {
+        let handlers = config.handlers();
         let pool = CpuPool::new_num_cpus();
 
-        for msg in receiver {
+        for msg in msg_receiver {
             if msg.name() == "exit" {
                 break;
             }
@@ -65,45 +104,35 @@ where
                 }
             };
 
-            let handler = handler.clone();
-            let thread_hook = thread_hook.clone();
+            let cpu_future = future_thread(&pool, handler.clone(), msg, msg_sender.clone());
 
-            let cpu_future: CpuFuture<(), Error> = pool.spawn_fn(move || {
-                let value: FutureResult<(), Error> = handler(msg.message()).into_future();
-
-                value.or_else(move |err| {
-                    if msg.retries() > 0 {
-                        println!(
-                            "Task for '{}' failed with error: '{}', retrying",
-                            msg.name(),
-                            err
-                        );
-                        thread_hook.send(msg.retry())?;
-                    } else {
-                        println!(
-                            "Task for '{}' failed permanently with error: '{}'",
-                            msg.name(),
-                            err
-                        );
-                    }
-                    Ok(())
-                })
-            });
-
-            c.send(cpu_future).expect("Failed to send future");
+            fut_sender.send(cpu_future).expect("Failed to send future");
         }
+    })
+}
 
-        ()
-    });
-
-    let other_thread = thread::spawn(move || {
-        let _: Vec<Result<(), Error>> = stream::futures_unordered(p)
+fn cleanup_thread(fut_receiver: FutReceiver) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        for _ in stream::futures_unordered(fut_receiver)
             .filter(|_| false)
             .wait()
-            .collect();
-    });
+        {
+            // do nothing
+        }
+    })
+}
 
-    Hooks::new(hook, thread, other_thread)
+pub fn run<T>(config: Config<'static, T>) -> Hooks<T>
+where
+    T: Send + Sync + Clone,
+{
+    let (msg_sender, msg_receiver) = mpsc::channel::<Message<T>>();
+    let (fut_sender, fut_receiver) = mpsc::channel::<CpuFuture<(), Error>>();
+
+    let thread = manager_thread(config, msg_sender.clone(), msg_receiver, fut_sender);
+    let other_thread = cleanup_thread(fut_receiver);
+
+    Hooks::new(msg_sender, thread, other_thread)
 }
 
 #[cfg(test)]

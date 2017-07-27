@@ -22,8 +22,8 @@ use std::sync::Arc;
 use std::fmt;
 use super::Error;
 
-type Handler<'a, T> = Fn(&Option<T>) -> Result<(), Error> + Send + Sync + 'a;
-type SafeHandler<'a, T> = Arc<Handler<'a, T>>;
+pub type Handler<'a, T> = Fn(&Option<T>) -> Result<(), Error> + Send + Sync + 'a;
+pub type SafeHandler<'a, T> = Arc<Handler<'a, T>>;
 
 #[derive(Clone)]
 pub struct Config<'a, T>
