@@ -1,7 +1,10 @@
 [package]
 name = "authentication_rocket"
+description = "A Rocket-based front-end for the Authentication app"
+repository = "http://github.com/asonix/authentication-rs"
 version = "0.1.0"
 authors = ["Riley Trautman <asonix.dev@gmail.com>"]
+license = "GPL-3.0"
 
 [dependencies]
 authentication_backend = { path = "../authentication_backend" }

@@ -1,7 +1,10 @@
 [package]
 name = "authentication_backend"
+description = "The types and database required for Authentication"
+repository = "http://github.com/asonix/authentication-rs"
 version = "0.1.0"
 authors = ["Riley Trautman <asonix.dev@gmail.com>"]
+license = "GPL-3.0"
 
 [dependencies]
 diesel = { version = "0.14.1", features = ["postgres"] }
