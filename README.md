@@ -110,7 +110,7 @@ JWT_PUBLIC_KEY=/path/to/authentication/authentication_backend/keys/public.der
 BCRYPT_COST=4
 ```
 
-The `BCRYPT_COST` in the environment is optional. If unspecified, BCrypt will use the `DEFAULT_COST` which is 12 at the time of writing. This value exists on a scale of 4 to 31. To make testing quicker, smaller values can be used. For production system, larger values should be used.
+The `BCRYPT_COST` in the environment is optional. If unspecified, BCrypt will use the `DEFAULT_COST` which is 12 at the time of writing. This value exists on a scale of 4 to 31. To make testing quicker, smaller values can be used. For production systems, larger values should be used.
 
 Install [`diesel_cli`](http://diesel.rs/guides/getting-started/) and make sure your global rust binaries are in your path.
 
