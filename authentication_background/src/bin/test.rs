@@ -24,7 +24,7 @@ use std::sync::Arc;
 // use std::thread;
 // use std::time::Duration;
 
-fn print_job(item: &Option<i32>) -> Result<(), Error> {
+fn print_job(item: &Option<i32>) -> Result {
     if let Some(ref value) = *item {
         println!("Found number: '{}'", value);
     } else {
@@ -34,7 +34,7 @@ fn print_job(item: &Option<i32>) -> Result<(), Error> {
     Ok(())
 }
 
-fn other_job(item: &Option<i32>) -> Result<(), Error> {
+fn other_job(item: &Option<i32>) -> Result {
     if let Some(ref value) = *item {
         println!("Other number: '{}'", value);
     } else {

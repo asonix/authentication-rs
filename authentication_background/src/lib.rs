@@ -34,7 +34,7 @@ mod config;
 mod hooks;
 
 pub use message::Message;
-pub use error::Error;
+pub use error::{Error, Result};
 pub use config::{Config, SafeHandler};
 pub use hooks::Hooks;
 

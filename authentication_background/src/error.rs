@@ -17,11 +17,14 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use std::result::Result as StdResult;
 use std::error::Error as StdError;
 use std::any::Any;
 use std::fmt;
 use std::sync::mpsc;
 use super::Message;
+
+pub type Result = StdResult<(), Error>;
 
 #[derive(Debug)]
 pub enum Error {
