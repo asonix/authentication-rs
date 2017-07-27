@@ -25,6 +25,8 @@ use super::Error;
 pub type Handler<'a, T> = Fn(&Option<T>) -> Result<(), Error> + Send + Sync + 'a;
 pub type SafeHandler<'a, T> = Arc<Handler<'a, T>>;
 
+pub const EXIT_STR: &'static str = "exit";
+
 #[derive(Clone)]
 pub struct Config<'a, T>
 where
@@ -72,7 +74,7 @@ where
         name: String,
         handler: SafeHandler<'a, T>,
     ) -> Result<(), Error> {
-        if &name == "exit" {
+        if &name == EXIT_STR {
             return Err(Error::ExitHandler);
         }
 

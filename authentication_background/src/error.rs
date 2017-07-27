@@ -37,7 +37,7 @@ impl StdError for Error {
         match *self {
             Error::ProcessingError(_) => "Error processing job",
             Error::DuplicateHandler(_) => "Handler with that name already exists",
-            Error::ExitHandler => "Cannot register handler with reserved anme 'exit'",
+            Error::ExitHandler => "Cannot register handler with reserved exit name",
             Error::SendError => "Could not send data",
             Error::JoinError => "Could not join thread",
         }
@@ -53,7 +53,7 @@ impl fmt::Display for Error {
         match *self {
             Error::ProcessingError(ref s) => write!(f, "Error processing data: '{}'", s),
             Error::DuplicateHandler(ref s) => write!(f, "Handler already exists for '{}'", s),
-            Error::ExitHandler => write!(f, "Cannot register handler with reserved name 'exit'"),
+            Error::ExitHandler => write!(f, "Cannot register handler with reserved exit name"),
             Error::SendError => write!(f, "Could not send data to thread"),
             Error::JoinError => write!(f, "Could not join thread"),
         }

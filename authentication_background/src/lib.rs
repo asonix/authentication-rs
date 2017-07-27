@@ -35,10 +35,10 @@ mod hooks;
 
 pub use message::Message;
 pub use error::Error;
-pub use config::Config;
+pub use config::{Config, SafeHandler};
 pub use hooks::Hooks;
 
-pub use config::SafeHandler;
+use config::EXIT_STR;
 
 pub type MsgSender<T> = mpsc::Sender<Message<T>>;
 pub type MsgReceiver<T> = mpsc::Receiver<Message<T>>;
@@ -92,7 +92,7 @@ where
         let pool = CpuPool::new_num_cpus();
 
         for msg in msg_receiver {
-            if msg.name() == "exit" {
+            if msg.name() == EXIT_STR {
                 break;
             }
 
