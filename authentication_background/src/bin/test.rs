@@ -48,11 +48,11 @@ fn main() {
     let mut config: Config<i32> = Config::new();
 
     config
-        .register_handler("print".to_owned(), Arc::new(print_job))
+        .register_handler("print", Arc::new(print_job))
         .unwrap();
 
     config
-        .register_handler("other".to_owned(), Arc::new(other_job))
+        .register_handler("other", Arc::new(other_job))
         .unwrap();
 
     let hooks = run(config);
@@ -62,20 +62,14 @@ fn main() {
     let mid = 5;
 
     for num in 0..mid {
-        sender
-            .send(Message::new("print".to_owned(), Some(num)))
-            .unwrap();
+        sender.send(Message::new("print", Some(num))).unwrap();
     }
 
     for num in mid..(mid * 2) {
-        sender
-            .send(Message::new("other".to_owned(), Some(num)))
-            .unwrap();
+        sender.send(Message::new("other", Some(num))).unwrap();
     }
 
-    sender
-        .send(Message::new("unused".to_owned(), None))
-        .unwrap();
+    sender.send(Message::new("unused", None)).unwrap();
 
     // thread::sleep(Duration::from_secs(1));
 

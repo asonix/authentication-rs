@@ -19,7 +19,7 @@
 
 use std::thread;
 use std::sync::mpsc;
-use super::{Error, Message};
+use super::{EXIT_STR, Error, Message};
 
 #[derive(Debug)]
 pub struct Hooks<T> {
@@ -48,7 +48,7 @@ impl<T: Send + Sync + Clone> Hooks<T> {
             hook,
         } = self;
 
-        hook.send(Message::new("exit".to_owned(), None))?;
+        hook.send(Message::new(EXIT_STR, None))?;
 
         handle.join()?;
         other_handle.join()?;

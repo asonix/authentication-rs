@@ -19,13 +19,13 @@
 
 #[derive(Debug, Clone)]
 pub struct Message<T> {
-    name: String,
+    name: &'static str,
     message: Option<T>,
     retries: i32,
 }
 
 impl<T: Clone> Message<T> {
-    pub fn new(name: String, message: Option<T>) -> Message<T> {
+    pub fn new(name: &'static str, message: Option<T>) -> Message<T> {
         Message::<T> {
             name: name,
             message: message,
@@ -47,7 +47,7 @@ impl<T: Clone> Message<T> {
 
     pub fn retry(&self) -> Self {
         Message {
-            name: self.name.clone(),
+            name: self.name,
             message: self.message.clone(),
             retries: self.retries - 1,
         }

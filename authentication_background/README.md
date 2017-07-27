@@ -25,7 +25,7 @@ fn main() {
     let config = Config::new::<MyMessage>();
 
     // Register some_handler as a job handler under the name "some_handler"
-    config.register_handler("some_handler".to_owned(), Arc::new(some_handler)).unwrap();
+    config.register_handler("some_handler", Arc::new(some_handler)).unwrap();
 
     // Actually fire up the background job threads
     let hooks = run(config);
@@ -36,7 +36,7 @@ fn main() {
     // Send a message of Some(5) to the background job threads.
     // This message will be processed by the handler registered under
     // the "some_handler" name.
-    sender.send(Message::new("some_handler".to_owned(), Some(5))).unwrap();
+    sender.send(Message::new("some_handler", Some(5))).unwrap();
 
     // Tear down the background job threads
     hooks.cleanup().unwrap();

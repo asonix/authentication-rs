@@ -27,6 +27,6 @@ mod mailer;
 
 pub fn register_jobs(config: &mut Config<i32>) {
     config
-        .register_handler("mail".to_owned(), Arc::new(mailer::verification_code))
+        .register_handler("mail", Arc::new(mailer::verification_code))
         .unwrap()
 }

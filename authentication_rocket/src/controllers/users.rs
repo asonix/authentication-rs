@@ -29,7 +29,7 @@ where
 {
     let user = User::create(auth)?;
 
-    match sender.send(Message::new("mail".to_owned(), Some(user.id()))) {
+    match sender.send(Message::new("mail", Some(user.id()))) {
         _ => (),
     };
 

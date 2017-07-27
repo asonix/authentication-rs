@@ -32,7 +32,7 @@ pub struct Config<'a, T>
 where
     T: 'a + Send + Sync,
 {
-    handlers: HashMap<String, SafeHandler<'a, T>>,
+    handlers: HashMap<&'a str, SafeHandler<'a, T>>,
 }
 
 impl<'a, T> fmt::Debug for Config<'a, T>
@@ -40,7 +40,7 @@ where
     T: Send + Sync,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let keys: Vec<&str> = self.handlers.keys().map(|key| key.as_str()).collect();
+        let keys: Vec<&str> = self.handlers.keys().map(|s| *s).collect();
 
         let keys = keys.join(", ");
 
@@ -65,13 +65,13 @@ where
         Default::default()
     }
 
-    pub fn handlers(self) -> HashMap<String, SafeHandler<'a, T>> {
+    pub fn handlers(self) -> HashMap<&'a str, SafeHandler<'a, T>> {
         self.handlers
     }
 
     pub fn register_handler(
         &mut self,
-        name: String,
+        name: &'a str,
         handler: SafeHandler<'a, T>,
     ) -> Result<(), Error> {
         if name == EXIT_STR {
@@ -79,7 +79,7 @@ where
         }
 
         if self.handlers.contains_key(&name) {
-            return Err(Error::DuplicateHandler(name));
+            return Err(Error::DuplicateHandler(name.to_owned()));
         };
 
         self.handlers.insert(name, handler);
