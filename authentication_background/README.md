@@ -3,7 +3,7 @@ Authentication Background is the background jobs library used by the Authenticat
 
 ## Usage
 ```Rust
-// /src/lib.rs
+// src/main.rs
 
 extern crate authentication_background;
 
