@@ -19,7 +19,7 @@
 
 use diesel;
 use diesel::prelude::*;
-use bcrypt::{DEFAULT_COST, hash};
+use bcrypt::hash;
 use CONFIG;
 use super::{UserTrait, User};
 use schema::users;
@@ -47,7 +47,7 @@ impl NewUser {
         let password = validate_password(password)?;
         let username = validate_username(username)?;
 
-        let hash = hash(password, DEFAULT_COST)?;
+        let hash = hash(password, CONFIG.bcrypt_cost())?;
 
         Ok(NewUser {
             username: username.to_string(),

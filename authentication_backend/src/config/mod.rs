@@ -17,9 +17,11 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use bcrypt::DEFAULT_COST;
 use diesel::pg::PgConnection;
 use r2d2_diesel::ConnectionManager;
 use error::Result;
+use dotenv::dotenv;
 use self::db::DB;
 use self::jwt_secret::JWTSecret;
 use self::password_regex::PasswordRegex;
@@ -36,6 +38,7 @@ pub struct Config {
     jwt_secret: JWTSecret,
     db_pool: ConnectionPool,
     password_regex: PasswordRegex,
+    bcrypt_cost: u32,
 }
 
 impl Config {
@@ -44,6 +47,7 @@ impl Config {
             jwt_secret: JWTSecret::initialize(),
             db_pool: ConnectionPool::initialize(),
             password_regex: PasswordRegex::initialize(),
+            bcrypt_cost: bcrypt_cost(),
         }
     }
 
@@ -57,5 +61,18 @@ impl Config {
 
     pub fn password_regex(&self) -> &PasswordRegex {
         &self.password_regex
+    }
+
+    pub fn bcrypt_cost(&self) -> u32 {
+        self.bcrypt_cost
+    }
+}
+
+fn bcrypt_cost() -> u32 {
+    dotenv().ok();
+
+    match dotenv!("BCRYPT_COST").parse::<u32>() {
+        Ok(u) => u,
+        Err(_) => DEFAULT_COST,
     }
 }

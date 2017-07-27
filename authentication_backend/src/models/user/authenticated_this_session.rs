@@ -19,7 +19,7 @@
 
 use diesel;
 use diesel::prelude::*;
-use bcrypt::{DEFAULT_COST, hash};
+use bcrypt::hash;
 use CONFIG;
 use error::{Error, Result};
 use webtoken::Webtoken;
@@ -89,7 +89,7 @@ impl AuthenticatedThisSession {
 
         let new_pass = validate_password(new_pass)?;
 
-        let hash = hash(new_pass, DEFAULT_COST)?;
+        let hash = hash(new_pass, CONFIG.bcrypt_cost())?;
 
         let db = CONFIG.db()?;
 
