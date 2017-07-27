@@ -74,7 +74,7 @@ where
         name: String,
         handler: SafeHandler<'a, T>,
     ) -> Result<(), Error> {
-        if &name == EXIT_STR {
+        if name == EXIT_STR {
             return Err(Error::ExitHandler);
         }
 
