@@ -107,46 +107,54 @@ mod tests {
     use authentication_backend::user_test_helper::{teardown_by_name, with_user, with_auth_session,
                                                    with_admin};
     use authentication_backend::test_helper::{generate_string, test_password};
+    use authentication_background::Message;
     use std::panic;
+    use std::sync::mpsc;
     use super::*;
 
     #[test]
     fn sign_up_signs_up_new_user() {
         test_wrapper(|username| {
-            let auth = Authenticatable::UserAndPass {
-                username: username,
-                password: "Testp4ss$.",
-            };
+            with_msg_sender(1, |sender| {
+                let auth = Authenticatable::UserAndPass {
+                    username: username,
+                    password: "Testp4ss$.",
+                };
 
-            let user = sign_up(&auth);
+                let user = sign_up(&auth, &sender);
 
-            assert!(user.is_ok(), "Failed to sign in user");
+                assert!(user.is_ok(), "Failed to sign in user");
+            });
         });
     }
 
     #[test]
     fn sign_up_with_bad_username_doesnt_sign_up_user() {
-        let auth = Authenticatable::UserAndPass {
-            username: "",
-            password: "Testp4ss$.",
-        };
+        with_msg_sender(0, |sender| {
+            let auth = Authenticatable::UserAndPass {
+                username: "",
+                password: "Testp4ss$.",
+            };
 
-        let user = sign_up(&auth);
+            let user = sign_up(&auth, &sender);
 
-        assert!(!user.is_ok(), "Signed up user with empty username");
+            assert!(!user.is_ok(), "Signed up user with empty username");
+        });
     }
 
     #[test]
     fn sign_up_with_bad_password_doesnt_sign_up_user() {
         test_wrapper(|username| {
-            let auth = Authenticatable::UserAndPass {
-                username: username,
-                password: "This is a bad password",
-            };
+            with_msg_sender(0, |sender| {
+                let auth = Authenticatable::UserAndPass {
+                    username: username,
+                    password: "This is a bad password",
+                };
 
-            let user = sign_up(&auth);
+                let user = sign_up(&auth, &sender);
 
-            assert!(!user.is_ok(), "Failed to sign in user");
+                assert!(!user.is_ok(), "Failed to sign in user");
+            });
         });
     }
 
@@ -362,6 +370,25 @@ mod tests {
                 assert!(!result.is_ok(), "Non-Admin User revoked permission");
             });
         });
+    }
+
+    fn with_msg_sender<T>(sent: usize, test: T) -> ()
+    where
+        T: FnOnce(MsgSender<i32>) -> () + panic::UnwindSafe,
+    {
+        let (sender, receiver) = mpsc::channel::<Message<i32>>();
+
+        test(sender); // consume sender
+
+        let len = receiver.iter().collect::<Vec<_>>().len();
+
+        assert_eq!(
+            len,
+            sent,
+            "Did not send correct number of messages, expected: {}, sent: {}",
+            sent,
+            len,
+        );
     }
 
     fn test_wrapper<T>(test: T) -> ()

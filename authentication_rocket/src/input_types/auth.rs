@@ -23,8 +23,11 @@ use authentication_backend::{Authenticatable, ToAuth};
 #[serde(untagged)]
 pub enum Auth {
     UserAndPass { username: String, password: String },
-    WebtokenAndPass { webtoken: String, password: String },
-    Webtoken { webtoken: String },
+    WebtokenAndPass {
+        user_token: String,
+        password: String,
+    },
+    Webtoken { user_token: String },
 }
 
 impl ToAuth for Auth {
@@ -40,7 +43,7 @@ impl ToAuth for Auth {
                 }
             }
             Auth::WebtokenAndPass {
-                webtoken: ref w,
+                user_token: ref w,
                 password: ref p,
             } => {
                 Authenticatable::UserTokenAndPass {
@@ -48,7 +51,7 @@ impl ToAuth for Auth {
                     password: p,
                 }
             }
-            Auth::Webtoken { webtoken: ref w } => Authenticatable::UserToken { user_token: w },
+            Auth::Webtoken { user_token: ref w } => Authenticatable::UserToken { user_token: w },
         }
     }
 }
