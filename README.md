@@ -160,7 +160,7 @@ $ cargo run --bin server
 
 ### Testing
 
-Test the application with. Currently there are only tests for the authentication_backend package. More tests will come.
+Test the application with. Currently there are tests for the authentication_backend and authentication_rocket packages. More tests will come.
 
 ```bash
 $ cargo test
