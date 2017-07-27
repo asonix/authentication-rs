@@ -17,10 +17,10 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use super::{Result, BackgroundError};
+use super::{BackgroundResult, BackgroundError};
 use authentication_backend::{VerificationCode, UserTrait, User};
 
-fn handle_code(user_id: i32) -> Result {
+fn handle_code(user_id: i32) -> BackgroundResult {
     let vc = match VerificationCode::find_by_user_id(user_id) {
         Ok(vc) => vc,
         Err(_) => {
@@ -48,7 +48,7 @@ fn handle_code(user_id: i32) -> Result {
     Ok(())
 }
 
-pub fn verification_code(msg: &Option<i32>) -> Result {
+pub fn verification_code(msg: &Option<i32>) -> BackgroundResult {
     match *msg {
         Some(msg) => handle_code(msg),
         None => Ok(()),

@@ -18,12 +18,10 @@
  */
 
 use std::sync::Arc;
-use std::result::Result as StdResult;
 use authentication_background::Config;
 
 pub use authentication_background::Error as BackgroundError;
-
-pub type Result = StdResult<(), BackgroundError>;
+pub use authentication_background::Result as BackgroundResult;
 
 mod mailer;
 
