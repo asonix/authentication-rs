@@ -78,7 +78,7 @@ where
             return Err(Error::ExitHandler);
         }
 
-        if self.handlers.contains_key(&name) {
+        if self.handlers.contains_key(name) {
             return Err(Error::DuplicateHandler(name.to_owned()));
         };
 

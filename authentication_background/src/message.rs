@@ -34,7 +34,7 @@ impl<T: Clone> Message<T> {
     }
 
     pub fn name(&self) -> &str {
-        &self.name
+        self.name
     }
 
     pub fn message(&self) -> &Option<T> {
