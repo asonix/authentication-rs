@@ -29,6 +29,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
 
+extern crate authentication_background;
 extern crate serde;
 extern crate serde_json;
 extern crate rand;
@@ -45,6 +46,7 @@ use config::Config;
 mod config;
 mod schema;
 mod models;
+pub mod controllers;
 mod error;
 mod webtoken;
 mod authenticatable;

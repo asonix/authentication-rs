@@ -17,13 +17,13 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use authentication_backend::Error as BackendError;
-use authentication_backend::{ToAuth, Admin, User, UserTrait};
-use routes::Response;
-use auth_response::AuthResponse;
 use authentication_background::{Message, MsgSender};
+use authenticatable::ToAuth;
+use webtoken::Webtoken;
+use models::{Admin, Authenticated, User, UserTrait};
+use error::{Result, Error};
 
-pub fn sign_up<T>(auth: &T, sender: &MsgSender<i32>) -> Response
+pub fn sign_up<T>(auth: &T, sender: &MsgSender<i32>) -> Result<User>
 where
     T: ToAuth,
 {
@@ -33,30 +33,26 @@ where
         _ => (),
     };
 
-    Ok(AuthResponse::new("User created", user))
+    Ok(user)
 }
 
-pub fn log_in<T>(auth: &T) -> Response
+pub fn log_in<T>(auth: &T) -> Result<Webtoken>
 where
     T: ToAuth,
 {
     let user = User::authenticate_session(auth)?;
 
-    let token = user.create_webtoken().ok();
-
-    Ok(AuthResponse::new("Authenticated", token))
+    user.create_webtoken()
 }
 
-pub fn is_authenticated<T>(auth: &T) -> Response
+pub fn is_authenticated<T>(auth: &T) -> Result<Authenticated>
 where
     T: ToAuth,
 {
-    User::authenticate(auth)?;
-
-    Ok(AuthResponse::empty("Authenticated"))
+    User::authenticate(auth)
 }
 
-pub fn delete<T>(target_user: &str, auth: &T) -> Response
+pub fn delete<T>(target_user: &str, auth: &T) -> Result<()>
 where
     T: ToAuth,
 {
@@ -67,13 +63,13 @@ where
     } else if let Ok(admin) = Admin::from_authenticated(user) {
         admin.delete_user(target_user)?;
     } else {
-        return Err(BackendError::PermissionError.into());
+        return Err(Error::PermissionError);
     }
 
-    Ok(AuthResponse::empty("Deleted"))
+    Ok(())
 }
 
-pub fn grant_permission<T>(target_user: &str, permission: &str, auth: &T) -> Response
+pub fn grant_permission<T>(target_user: &str, permission: &str, auth: &T) -> Result<()>
 where
     T: ToAuth,
 {
@@ -84,10 +80,10 @@ where
 
     admin.give_permission(&target_user, permission)?;
 
-    Ok(AuthResponse::empty("Permission granted"))
+    Ok(())
 }
 
-pub fn revoke_permission<T>(target_user: &str, permission: &str, auth: &T) -> Response
+pub fn revoke_permission<T>(target_user: &str, permission: &str, auth: &T) -> Result<()>
 where
     T: ToAuth,
 {
@@ -98,18 +94,17 @@ where
 
     admin.revoke_permission(&target_user, permission)?;
 
-    Ok(AuthResponse::empty("Permission revoked"))
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use authentication_backend::Authenticatable;
-    use authentication_backend::user_test_helper::{teardown_by_name, with_user, with_auth_session,
-                                                   with_admin};
-    use authentication_backend::test_helper::{generate_string, test_password};
     use authentication_background::Message;
-    use std::panic;
     use std::sync::mpsc;
+    use std::panic;
+    use user_test_helper::{teardown_by_name, with_user, with_auth_session, with_admin};
+    use authenticatable::Authenticatable;
+    use test_helper::{generate_string, test_password};
     use super::*;
 
     #[test]

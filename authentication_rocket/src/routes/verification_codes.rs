@@ -17,10 +17,13 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use controllers::verification_codes;
+use authentication_backend::controllers::verification_codes;
 use super::Response;
+use auth_response::AuthResponse;
 
 #[get("/verify/<code>")]
 pub fn verify(code: String) -> Response {
-    verification_codes::verify(&code)
+    verification_codes::verify(&code)?;
+
+    Ok(AuthResponse::empty("User verified"))
 }

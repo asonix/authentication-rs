@@ -17,23 +17,21 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use authentication_backend::{ToAuth, Admin, User};
-use routes::Response;
-use auth_response::AuthResponse;
+use authenticatable::ToAuth;
+use models::{Admin, User, Permission};
+use error::Result;
 
-pub fn create<T>(permission: &str, auth: &T) -> Response
+pub fn create<T>(permission: &str, auth: &T) -> Result<Permission>
 where
     T: ToAuth,
 {
     let user = User::authenticate(auth)?;
     let admin = Admin::from_authenticated(user)?;
 
-    let permission = admin.create_permission(permission)?;
-
-    Ok(AuthResponse::new("Permission created", permission))
+    admin.create_permission(permission)
 }
 
-pub fn delete<T>(permission: &str, auth: &T) -> Response
+pub fn delete<T>(permission: &str, auth: &T) -> Result<()>
 where
     T: ToAuth,
 {
@@ -42,17 +40,18 @@ where
 
     admin.delete_permission(permission)?;
 
-    Ok(AuthResponse::empty("Permission deleted"))
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use std::panic;
     use super::*;
-    use authentication_backend::{Authenticatable, UserTrait};
-    use authentication_backend::permission_test_helper::{with_permission, teardown_by_name};
-    use authentication_backend::user_test_helper::{with_admin, with_user};
-    use authentication_backend::test_helper::{generate_string, test_password};
+    use permission_test_helper::{with_permission, teardown_by_name};
+    use user_test_helper::{with_admin, with_user};
+    use authenticatable::Authenticatable;
+    use test_helper::{generate_string, test_password};
+    use models::UserTrait;
 
     #[test]
     fn create_creates_permission() {

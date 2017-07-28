@@ -17,18 +17,23 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use authentication_backend::controllers::permissions;
 use rocket_contrib::Json;
 use input_types::Auth;
 use input_types::CreatePermission;
-use controllers::permissions;
 use super::Response;
+use auth_response::AuthResponse;
 
 #[post("/permissions", format = "application/json", data = "<new_permission>")]
 pub fn create(new_permission: Json<CreatePermission>) -> Response {
-    permissions::create(new_permission.0.permission(), &new_permission.0)
+    let permission = permissions::create(new_permission.0.permission(), &new_permission.0)?;
+
+    Ok(AuthResponse::new("Permission created", permission))
 }
 
 #[post("/permissions/<permission_name>/delete", format = "application/json", data = "<payload>")]
 pub fn delete(permission_name: String, payload: Json<Auth>) -> Response {
-    permissions::delete(&permission_name, &payload.0)
+    permissions::delete(&permission_name, &payload.0)?;
+
+    Ok(AuthResponse::empty("Permission deleted"))
 }

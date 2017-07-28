@@ -32,7 +32,6 @@ extern crate authentication_background;
 
 mod routes;
 mod jobs;
-mod controllers;
 mod error;
 mod auth_response;
 mod input_types;

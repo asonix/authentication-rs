@@ -17,12 +17,15 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use authentication_backend::controllers::webtokens;
 use rocket_contrib::Json;
-use controllers::webtokens;
 use input_types::RenewalToken;
+use auth_response::AuthResponse;
 use super::Response;
 
 #[post("/renew-token", format = "application/json", data = "<renewal_token>")]
 pub fn renew(renewal_token: Json<RenewalToken>) -> Response {
-    webtokens::renew(&renewal_token.0.renewal_token)
+    let webtoken = webtokens::renew(&renewal_token.0.renewal_token)?;
+
+    Ok(AuthResponse::new("Renewed", webtoken))
 }

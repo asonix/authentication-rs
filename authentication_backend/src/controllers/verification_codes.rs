@@ -17,12 +17,11 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use authentication_backend::User;
-use routes::Response;
-use auth_response::AuthResponse;
+use models::User;
+use error::Result;
 
-pub fn verify(code: &str) -> Response {
+pub fn verify(code: &str) -> Result<()> {
     User::verify_with_code(code)?;
 
-    Ok(AuthResponse::empty("User verified"))
+    Ok(())
 }

@@ -17,20 +17,17 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use authentication_backend::Webtoken;
-use routes::Response;
-use auth_response::AuthResponse;
+use webtoken::Webtoken;
+use error::Result;
 
-pub fn renew(renewal_token: &str) -> Response {
-    let webtoken = Webtoken::renew(renewal_token)?;
-
-    Ok(AuthResponse::new("Renewed", webtoken))
+pub fn renew(renewal_token: &str) -> Result<Webtoken> {
+    Webtoken::renew(renewal_token)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use authentication_backend::webtoken_test_helper::with_token;
+    use webtoken_test_helper::with_token;
 
     #[test]
     fn renew_renews_tokens() {
