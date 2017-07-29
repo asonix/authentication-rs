@@ -19,7 +19,9 @@
 
 use std::thread;
 use std::sync::mpsc;
-use super::{EXIT_STR, Error, Message};
+use message::Message;
+use config::EXIT_STR;
+use error::Error;
 
 #[derive(Debug)]
 pub struct Hooks<T> {

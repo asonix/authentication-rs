@@ -7,6 +7,3 @@ authors = ["Riley Trautman <asonix.dev@gmail.com>"]
 authentication_backend = { path = "../authentication_backend" }
 authentication_background = { path = "../authentication_background" }
 zmq = "0.8"
-futures = "0.1"
-futures-cpupool = "0.1"
-tokio-core = "0.1"

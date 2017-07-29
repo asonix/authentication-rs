@@ -21,14 +21,13 @@ extern crate futures;
 extern crate futures_cpupool;
 
 use futures::Future;
-use futures::Stream;
-use futures::stream;
 use futures::future::{FutureResult, IntoFuture};
 use futures_cpupool::{CpuPool, CpuFuture};
 use std::thread;
 use std::sync::mpsc;
 
 mod message;
+mod receiver;
 mod error;
 mod config;
 mod hooks;
@@ -38,7 +37,7 @@ pub use error::{Error, Result};
 pub use config::{Config, SafeHandler};
 pub use hooks::Hooks;
 
-use config::EXIT_STR;
+use receiver::Receiver;
 
 pub type MsgSender<T> = mpsc::Sender<Message<T>>;
 pub type MsgReceiver<T> = mpsc::Receiver<Message<T>>;
@@ -58,20 +57,9 @@ where
     pool.spawn_fn(move || {
         let value: FutureResult<(), Error> = handler(msg.message()).into_future();
 
-        value.or_else(move |err| {
+        value.or_else(move |_| {
             if msg.retries() > 0 {
-                println!(
-                    "Task for '{}' failed with error: '{}', retrying",
-                    msg.name(),
-                    err
-                );
                 msg_sender.send(msg.retry())?;
-            } else {
-                println!(
-                    "Task for '{}' failed permanently with error: '{}'",
-                    msg.name(),
-                    err
-                );
             }
             Ok(())
         })
@@ -91,33 +79,24 @@ where
         let handlers = config.handlers();
         let pool = CpuPool::new_num_cpus();
 
-        for msg in msg_receiver {
-            if msg.name() == EXIT_STR {
-                break;
-            }
-
+        for msg in Receiver::new(msg_receiver) {
             let handler = match handlers.get(msg.name()) {
                 Some(handler) => handler,
-                None => {
-                    println!("No handler for message '{}'", msg.name());
-                    continue;
-                }
+                None => continue,
             };
 
             let cpu_future = future_thread(&pool, handler.clone(), msg, msg_sender.clone());
-
-            fut_sender.send(cpu_future).expect("Failed to send future");
+            if let Err(err) = fut_sender.send(cpu_future) {
+                println!("Error: '{}'", err);
+            }
         }
     })
 }
 
 fn cleanup_thread(fut_receiver: FutReceiver) -> thread::JoinHandle<()> {
-    thread::spawn(move || {
-        for _ in stream::futures_unordered(fut_receiver)
-            .filter(|_| false)
-            .wait()
-        {
-            // do nothing
+    thread::spawn(move || for fut in fut_receiver {
+        if let Err(err) = fut.wait() {
+            println!("Error: '{}'", err);
         }
     })
 }
