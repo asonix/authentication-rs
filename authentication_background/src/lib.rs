@@ -19,14 +19,12 @@
 
 extern crate futures;
 extern crate futures_cpupool;
-extern crate tokio_core;
 
 use futures::Future;
 use futures::Stream;
 use futures::stream;
 use futures::future::{FutureResult, IntoFuture};
 use futures_cpupool::{CpuPool, CpuFuture};
-use tokio_core::reactor::Core;
 use std::thread;
 use std::sync::mpsc;
 
@@ -84,6 +82,7 @@ fn manager_thread<T>(
     config: Config<'static, T>,
     msg_sender: MsgSender<T>,
     msg_receiver: MsgReceiver<T>,
+    fut_sender: FutSender,
 ) -> thread::JoinHandle<()>
 where
     T: Send + Sync + Clone,
@@ -92,33 +91,34 @@ where
         let handlers = config.handlers();
         let pool = CpuPool::new_num_cpus();
 
-        let messages = msg_receiver.iter().map(|msg| Ok(msg));
-        let server = stream::futures_unordered(messages)
-            .and_then(|msg| {
-                let handler = match handlers.get(msg.name()) {
-                    Some(handler) => handler,
-                    None => return Err(format!("No handler for message '{}'", msg.name())),
-                };
+        for msg in msg_receiver {
+            if msg.name() == EXIT_STR {
+                break;
+            }
 
-                handler(msg.message()).map_err(|_| msg)
-            })
-            .or_else(|msg| if msg.retries() > 0 {
-                println!(
-                    "Task for '{}' failed",
-                    msg.name(),
-                );
-                msg_sender.send(msg.retry())?;
-            } else {
-                println!(
-                    "Task for '{}' failed permanently",
-                    msg.name(),
-                );
-            })
-            .for_each(|_| ());
+            let handler = match handlers.get(msg.name()) {
+                Some(handler) => handler,
+                None => {
+                    println!("No handler for message '{}'", msg.name());
+                    continue;
+                }
+            };
 
-        let mut core = Core::new().unwrap();
+            let cpu_future = future_thread(&pool, handler.clone(), msg, msg_sender.clone());
 
-        core.run(server).unwrap();
+            fut_sender.send(cpu_future).expect("Failed to send future");
+        }
+    })
+}
+
+fn cleanup_thread(fut_receiver: FutReceiver) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        for _ in stream::futures_unordered(fut_receiver)
+            .filter(|_| false)
+            .wait()
+        {
+            // do nothing
+        }
     })
 }
 
@@ -127,10 +127,12 @@ where
     T: Send + Sync + Clone,
 {
     let (msg_sender, msg_receiver) = mpsc::channel::<Message<T>>();
+    let (fut_sender, fut_receiver) = mpsc::channel::<CpuFuture<(), Error>>();
 
-    let thread = manager_thread(config, msg_sender.clone(), msg_receiver);
+    let thread = manager_thread(config, msg_sender.clone(), msg_receiver, fut_sender);
+    let other_thread = cleanup_thread(fut_receiver);
 
-    Hooks::new(msg_sender, thread)
+    Hooks::new(msg_sender, thread, other_thread)
 }
 
 #[cfg(test)]
