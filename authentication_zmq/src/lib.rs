@@ -18,6 +18,14 @@
  */
 
 extern crate zmq;
+extern crate futures;
+extern crate futures_cpupool;
+
+mod zmq_stream;
+
+use futures::{Future, Stream};
+use futures_cpupool::CpuPool;
+pub use self::zmq_stream::{ZmqSingle, ZmqMany};
 
 #[derive(Clone)]
 pub struct ZmqReceiver<'a> {
@@ -103,6 +111,36 @@ impl<'a> ZmqREP<'a> {
     pub fn send(&self, msg: &str) -> zmq::Result<()> {
         self.responder.send(msg)
     }
+}
+
+pub fn run_stream() {
+    let context = zmq::Context::new();
+    let sock = context.socket(zmq::REP).unwrap();
+    sock.bind("tcp://*:5560").unwrap();
+
+    println!("Before stream");
+
+    let stream = ZmqSingle::new(sock)
+        .map(|msg| msg.to_vec())
+        .map_err(|_| Vec::new())
+        .and_then(|msg| String::from_utf8(msg).map_err(|e| e.into_bytes()))
+        .or_else(|err| {
+            println!("Failed to parse string from Message");
+
+            Err(err)
+        })
+        .for_each(|msg| {
+            println!("msg: '{}'", msg);
+
+            Ok(())
+        });
+
+    let pool = CpuPool::new_num_cpus();
+    let res = pool.spawn_fn(move || stream);
+
+    res.wait();
+
+    println!("After stream");
 }
 
 pub fn run() {
