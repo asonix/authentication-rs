@@ -155,7 +155,9 @@ mod tests {
 
     #[test]
     fn log_in_logs_in() {
-        with_user(|user| {
+        with_user(|mut user| {
+            assert!(user.verify(), "Failed to verify user");
+
             let auth = Authenticatable::UserAndPass {
                 username: user.username(),
                 password: test_password(),
