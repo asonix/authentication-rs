@@ -15,7 +15,7 @@ struct SomeHandler;
 
 impl Handler<MyMessage> for SomeHandler {
     fn handle_present(&self, msg: &MyMessage) -> Result {
-        println!("Got: {}", item);
+        println!("Got: {}", msg);
         Ok(())
     }
 
