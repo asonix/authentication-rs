@@ -28,7 +28,7 @@ static SOME_HANDLER: SomeHandler = SomeHandler {};
 
 fn main() {
     // Create a new configuration for a background job that sends MyMessages
-    let config = Config::new::<MyMessage>();
+    let mut config = Config::new();
 
     // Register SOME_HANDLER as a job handler under the name "some_handler"
     config.register_handler("some_handler", &SOME_HANDLER).unwrap();
