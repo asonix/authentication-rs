@@ -18,27 +18,21 @@
  */
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::fmt;
-use super::Error;
+use error::{Error, Result};
+use handler::Handler;
 
-pub type Handler<'a, T> = Fn(&Option<T>) -> Result<(), Error> + Send + Sync + 'a;
-pub type SafeHandler<'a, T> = Arc<Handler<'a, T>>;
-
-pub const EXIT_STR: &'static str = "exit";
+pub static EXIT_STR: &str = "exit";
 
 #[derive(Clone)]
 pub struct Config<'a, T>
 where
-    T: 'a + Send + Sync,
+    T: 'a,
 {
-    handlers: HashMap<&'a str, SafeHandler<'a, T>>,
+    handlers: HashMap<&'a str, &'a Handler<T>>,
 }
 
-impl<'a, T> fmt::Debug for Config<'a, T>
-where
-    T: Send + Sync,
-{
+impl<'a, T> fmt::Debug for Config<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let keys: Vec<&str> = self.handlers.keys().map(|s| *s).collect();
 
@@ -48,32 +42,22 @@ where
     }
 }
 
-impl<'a, T> Default for Config<'a, T>
-where
-    T: Send + Sync,
-{
+impl<'a, T> Default for Config<'a, T> {
     fn default() -> Self {
         Config { handlers: HashMap::new() }
     }
 }
 
-impl<'a, T> Config<'a, T>
-where
-    T: Send + Sync,
-{
+impl<'a, T> Config<'a, T> {
     pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn handlers(self) -> HashMap<&'a str, SafeHandler<'a, T>> {
+    pub fn handlers(self) -> HashMap<&'a str, &'a Handler<T>> {
         self.handlers
     }
 
-    pub fn register_handler(
-        &mut self,
-        name: &'a str,
-        handler: SafeHandler<'a, T>,
-    ) -> Result<(), Error> {
+    pub fn register_handler(&mut self, name: &'a str, handler: &'a Handler<T>) -> Result {
         if name == EXIT_STR {
             return Err(Error::ExitHandler);
         }

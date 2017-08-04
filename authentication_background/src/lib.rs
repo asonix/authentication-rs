@@ -31,11 +31,13 @@ mod receiver;
 mod error;
 mod config;
 mod hooks;
+mod handler;
 
 pub use message::Message;
 pub use error::{Error, Result};
-pub use config::{Config, SafeHandler};
+pub use config::Config;
 pub use hooks::Hooks;
+pub use handler::Handler;
 
 use receiver::Receiver;
 
@@ -47,7 +49,7 @@ type FutReceiver = mpsc::Receiver<CpuFuture<(), Error>>;
 
 fn future_thread<T>(
     pool: &CpuPool,
-    handler: SafeHandler<'static, T>,
+    handler: &'static Handler<T>,
     msg: Message<T>,
     msg_sender: MsgSender<T>,
 ) -> CpuFuture<(), Error>
@@ -55,12 +57,13 @@ where
     T: 'static + Send + Sync + Clone,
 {
     pool.spawn_fn(move || {
-        let value: FutureResult<(), Error> = handler(msg.message()).into_future();
+        let value: FutureResult<(), Error> = handler.handle(msg.message()).into_future();
 
         value.or_else(move |_| {
             if msg.retries() > 0 {
                 msg_sender.send(msg.retry())?;
             }
+
             Ok(())
         })
     })
@@ -73,7 +76,7 @@ fn manager_thread<T>(
     fut_sender: FutSender,
 ) -> thread::JoinHandle<()>
 where
-    T: Send + Sync + Clone,
+    T: 'static + Send + Sync + Clone,
 {
     thread::spawn(move || {
         let handlers = config.handlers();
@@ -85,7 +88,7 @@ where
                 None => continue,
             };
 
-            let cpu_future = future_thread(&pool, handler.clone(), msg, msg_sender.clone());
+            let cpu_future = future_thread(&pool, *handler, msg, msg_sender.clone());
             if let Err(err) = fut_sender.send(cpu_future) {
                 println!("Error: '{}'", err);
             }
@@ -103,7 +106,7 @@ fn cleanup_thread(fut_receiver: FutReceiver) -> thread::JoinHandle<()> {
 
 pub fn run<T>(config: Config<'static, T>) -> Hooks<T>
 where
-    T: Send + Sync + Clone,
+    T: 'static + Send + Sync + Clone,
 {
     let (msg_sender, msg_receiver) = mpsc::channel::<Message<T>>();
     let (fut_sender, fut_receiver) = mpsc::channel::<CpuFuture<(), Error>>();

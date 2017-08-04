@@ -20,40 +20,45 @@
 extern crate authentication_background;
 
 use authentication_background::*;
-use std::sync::Arc;
 // use std::thread;
 // use std::time::Duration;
 
-fn print_job(item: &Option<i32>) -> Result {
-    if let Some(ref value) = *item {
-        println!("Found number: '{}'", value);
-    } else {
+struct PrintJob;
+
+impl Handler<i32> for PrintJob {
+    fn handle_present(&self, item: &i32) -> Result {
+        println!("Found number: '{}'", item);
+        Ok(())
+    }
+
+    fn handle_missing(&self) -> Result {
         println!("Found nothing");
+        Ok(())
     }
-
-    Ok(())
 }
 
-fn other_job(item: &Option<i32>) -> Result {
-    if let Some(ref value) = *item {
-        println!("Other number: '{}'", value);
-    } else {
+struct OtherJob;
+
+impl Handler<i32> for OtherJob {
+    fn handle_present(&self, item: &i32) -> Result {
+        println!("Other number: '{}'", item);
+        Ok(())
+    }
+
+    fn handle_missing(&self) -> Result {
         println!("Other nothing");
+        Ok(())
     }
-
-    Ok(())
 }
+
+static PRINT_JOB: PrintJob = PrintJob {};
+static OTHER_JOB: OtherJob = OtherJob {};
 
 fn main() {
-    let mut config: Config<i32> = Config::new();
+    let mut config = Config::new();
 
-    config
-        .register_handler("print", Arc::new(print_job))
-        .unwrap();
-
-    config
-        .register_handler("other", Arc::new(other_job))
-        .unwrap();
+    config.register_handler("print", &PRINT_JOB).unwrap();
+    config.register_handler("other", &OTHER_JOB).unwrap();
 
     let hooks = run(config);
 

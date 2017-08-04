@@ -7,25 +7,31 @@ Authentication Background is the background jobs library used by the Authenticat
 
 extern crate authentication_background;
 
-use std::sync::Arc;
-use authentication_background::{Config, Message, Result, run};
+use authentication_background::{Config, Message, Result, Handler, run};
 
 type MyMessage = i32;
 
-fn some_handler(msg: &Option<MyMessage>) -> Result {
-    if let Ok(ref item) = *msg {
+struct SomeHandler;
+
+impl Handler<MyMessage> for SomeHandler {
+    fn handle_present(&self, msg: &MyMessage) -> Result {
         println!("Got: {}", item);
+        Ok(())
     }
 
-    Ok(())
+    fn handle_missing(&self) -> Result {
+        Ok(())
+    }
 }
+
+static SOME_HANDLER: SomeHandler = SomeHandler {};
 
 fn main() {
     // Create a new configuration for a background job that sends MyMessages
     let config = Config::new::<MyMessage>();
 
-    // Register some_handler as a job handler under the name "some_handler"
-    config.register_handler("some_handler", Arc::new(some_handler)).unwrap();
+    // Register SOME_HANDLER as a job handler under the name "some_handler"
+    config.register_handler("some_handler", &SOME_HANDLER).unwrap();
 
     // Actually fire up the background job threads
     let hooks = run(config);
