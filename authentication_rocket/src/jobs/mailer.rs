@@ -17,40 +17,37 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use super::{BackgroundResult, BackgroundError};
+use super::{Result, Error, Handler};
 use authentication_backend::{VerificationCode, UserTrait, User};
 
-fn handle_code(user_id: i32) -> BackgroundResult {
-    let vc = match VerificationCode::find_by_user_id(user_id) {
-        Ok(vc) => vc,
-        Err(_) => {
-            return Err(BackgroundError::ProcessingError(
-                "Could not find verification_code".to_owned(),
-            ))
-        }
-    };
+pub struct Mailer;
 
-    let user = match User::find_by_id(user_id) {
-        Ok(user) => user,
-        Err(_) => {
-            return Err(BackgroundError::ProcessingError(
-                "Could not find user".to_owned(),
-            ))
-        }
-    };
+impl Handler<i32> for Mailer {
+    fn handle_present(&self, user_id: &i32) -> Result {
+        let vc = match VerificationCode::find_by_user_id(*user_id) {
+            Ok(vc) => vc,
+            Err(_) => {
+                return Err(Error::ProcessingError(
+                    "Could not find verification_code".to_owned(),
+                ))
+            }
+        };
 
-    println!(
-        "Sending email to user '{}' with verification code '{}'",
-        user.username(),
-        vc.code()
-    );
+        let user = match User::find_by_id(*user_id) {
+            Ok(user) => user,
+            Err(_) => return Err(Error::ProcessingError("Could not find user".to_owned())),
+        };
 
-    Ok(())
-}
+        println!(
+            "Sending email to user '{}' with verification code '{}'",
+            user.username(),
+            vc.code()
+        );
 
-pub fn verification_code(msg: &Option<i32>) -> BackgroundResult {
-    match *msg {
-        Some(msg) => handle_code(msg),
-        None => Ok(()),
+        Ok(())
+    }
+
+    fn handle_missing(&self) -> Result {
+        Ok(())
     }
 }

@@ -17,16 +17,16 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use std::sync::Arc;
 use authentication_background::Config;
 
-pub use authentication_background::Error as BackgroundError;
-pub use authentication_background::Result as BackgroundResult;
+pub use authentication_background::{Result, Error, Handler};
 
 mod mailer;
 
+use self::mailer::Mailer;
+
+static MAILER: Mailer = Mailer {};
+
 pub fn register_jobs(config: &mut Config<i32>) {
-    config
-        .register_handler("mail", Arc::new(mailer::verification_code))
-        .unwrap()
+    config.register_handler("mail", &MAILER).unwrap()
 }
