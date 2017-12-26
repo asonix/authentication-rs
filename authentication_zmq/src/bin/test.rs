@@ -19,20 +19,50 @@
 
 extern crate zmq;
 extern crate authentication_zmq;
+extern crate futures;
+extern crate tokio_core;
+
+use zmq::Message;
+use authentication_zmq::{ZmqAsyncREP, ZmqREP};
+use futures::stream::iter_ok;
+use futures::{Future, Sink, Stream};
+use tokio_core::reactor::Core;
 
 fn main() {
     let context = zmq::Context::new();
-    let requester = context.socket(zmq::REQ).unwrap();
+    {
+        let sock = context.socket(zmq::REQ).unwrap();
+        let zmq_sync = ZmqREP::connect(&sock, "tcp://localhost:5560").unwrap();
 
-    requester.connect("tcp://localhost:5560").expect(
-        "Failed to connect requester",
-    );
+        for req in 0..5 {
+            println!("sending: {}", req);
+            zmq_sync.send("Hello").unwrap();
 
-    for req in 0..10 {
-        println!("sending: {}", req);
-        requester.send("Hello".as_bytes(), 0).unwrap();
+            let message = zmq_sync.incomming().next().unwrap().unwrap().unwrap();
+            println!("Received reply {} {}", req, message);
+        }
+    }
 
-        let message = requester.recv_msg(0).unwrap();
-        println!("Received reply {} {}", req, message.as_str().unwrap());
+    {
+        let sock = context.socket(zmq::REQ).unwrap();
+        let zmq_async = ZmqAsyncREP::connect(&sock, "tcp://localhost:5560").unwrap();
+        let mut core = Core::new().unwrap();
+
+        for req in 0..5 {
+            let receive = zmq_async
+                .sink()
+                .send(Message::from_slice("hello".as_bytes()).unwrap())
+                .and_then(|_| zmq_async.stream().into_future().map_err(|_| ()))
+                .and_then(|(msg, _)| match msg {
+                    Some(msg) => {
+                        String::from_utf8(msg.to_vec())
+                            .map_err(|_| println!("Failed to parse string from Message"))
+                            .map(|msg| println!("Received reply {} {}", req, msg))
+                    }
+                    None => Err(()),
+                });
+
+            core.run(receive).unwrap();
+        }
     }
 }

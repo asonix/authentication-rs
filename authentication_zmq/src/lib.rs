@@ -19,128 +19,38 @@
 
 extern crate zmq;
 extern crate futures;
-extern crate futures_cpupool;
+extern crate tokio_core;
 
-mod zmq_stream;
+mod zmq_async;
+mod zmq_sync;
 
 use futures::{Future, Stream};
-use futures_cpupool::CpuPool;
-pub use self::zmq_stream::{ZmqSingle, ZmqMany};
+use tokio_core::reactor::Core;
 
-#[derive(Clone)]
-pub struct ZmqReceiver<'a> {
-    receiver: &'a zmq::Socket,
-}
-
-impl<'a> ZmqReceiver<'a> {
-    pub fn new(receiver: &'a zmq::Socket) -> ZmqReceiverBuilder<'a> {
-        ZmqReceiverBuilder { receiver: receiver }
-    }
-}
-
-pub struct ZmqReceiverBuilder<'a> {
-    receiver: &'a zmq::Socket,
-}
-
-impl<'a> ZmqReceiverBuilder<'a> {
-    pub fn bind(self, bind_addr: &str) -> zmq::Result<ZmqReceiver<'a>> {
-        self.receiver.bind(bind_addr)?;
-
-        Ok(ZmqReceiver { receiver: self.receiver })
-    }
-
-    pub fn connect(self, bind_addr: &str) -> zmq::Result<ZmqReceiver<'a>> {
-        self.receiver.connect(bind_addr)?;
-
-        Ok(ZmqReceiver { receiver: self.receiver })
-    }
-}
-
-impl<'a> Iterator for ZmqReceiver<'a> {
-    type Item = zmq::Result<Result<String, Vec<u8>>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        Some(self.receiver.recv_string(0))
-    }
-}
-
-pub struct ZmqResponder<'a> {
-    responder: &'a zmq::Socket,
-}
-
-impl<'a> ZmqResponder<'a> {
-    pub fn new(responder: &'a zmq::Socket) -> Self {
-        ZmqResponder { responder: responder }
-    }
-
-    pub fn send(&self, msg: &str) -> zmq::Result<()> {
-        self.responder.send(msg.as_bytes(), 0)
-    }
-}
-
-pub struct ZmqREP<'a> {
-    receiver: ZmqReceiver<'a>,
-    responder: ZmqResponder<'a>,
-}
-
-impl<'a> ZmqREP<'a> {
-    pub fn bind(sock: &'a zmq::Socket, addr: &str) -> zmq::Result<Self> {
-        let responder = ZmqResponder::new(&sock);
-        let receiver = ZmqReceiver::new(&sock).bind(addr)?;
-
-        Ok(ZmqREP {
-            receiver: receiver,
-            responder: responder,
-        })
-    }
-
-    pub fn connect(sock: &'a zmq::Socket, addr: &str) -> zmq::Result<Self> {
-        let responder = ZmqResponder::new(&sock);
-        let receiver = ZmqReceiver::new(&sock).connect(addr)?;
-
-        Ok(ZmqREP {
-            receiver: receiver,
-            responder: responder,
-        })
-    }
-
-    pub fn incomming(&self) -> ZmqReceiver {
-        self.receiver.clone()
-    }
-
-    pub fn send(&self, msg: &str) -> zmq::Result<()> {
-        self.responder.send(msg)
-    }
-}
+pub use self::zmq_sync::{ZmqReceiver, ZmqReceiverBuilder, ZmqResponder, ZmqREP};
+pub use self::zmq_async::{ZmqAsyncREP, ZmqSink, ZmqStream, ZmqStreamBuilder};
 
 pub fn run_stream() {
+    let mut core = Core::new().unwrap();
     let context = zmq::Context::new();
     let sock = context.socket(zmq::REP).unwrap();
-    sock.bind("tcp://*:5560").unwrap();
+    let zmq = ZmqAsyncREP::bind(&sock, "tcp://*:5560").unwrap();
 
-    println!("Before stream");
+    println!("Got zmq");
 
-    let stream = ZmqSingle::new(sock)
+    let stream = zmq.stream()
         .map(|msg| msg.to_vec())
-        .map_err(|_| Vec::new())
-        .and_then(|msg| String::from_utf8(msg).map_err(|e| e.into_bytes()))
-        .or_else(|err| {
-            println!("Failed to parse string from Message");
-
-            Err(err)
-        })
-        .for_each(|msg| {
+        .map_err(|_| ())
+        .and_then(|msg| String::from_utf8(msg).map_err(|_| ()))
+        .map_err(|_| println!("Failed to parse string from Message"))
+        .and_then(|msg| {
             println!("msg: '{}'", msg);
 
-            Ok(())
-        });
+            zmq::Message::from_slice("hey".as_bytes()).map_err(|_| ())
+        })
+        .forward(zmq.sink());
 
-    let pool = CpuPool::new_num_cpus();
-    let res = pool.spawn_fn(move || stream);
-
-    res.wait();
-
-    println!("After stream");
+    core.run(stream).unwrap();
 }
 
 pub fn run() {
