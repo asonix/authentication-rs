@@ -19,14 +19,8 @@
 
 extern crate zmq;
 extern crate authentication_zmq;
-extern crate futures;
-extern crate tokio_core;
 
-use zmq::Message;
-use authentication_zmq::{ZmqAsyncREP, ZmqREP};
-use futures::stream::iter_ok;
-use futures::{Future, Sink, Stream};
-use tokio_core::reactor::Core;
+use authentication_zmq::ZmqREP;
 
 fn main() {
     let context = zmq::Context::new();
@@ -40,29 +34,6 @@ fn main() {
 
             let message = zmq_sync.incomming().next().unwrap().unwrap().unwrap();
             println!("Received reply {} {}", req, message);
-        }
-    }
-
-    {
-        let sock = context.socket(zmq::REQ).unwrap();
-        let zmq_async = ZmqAsyncREP::connect(&sock, "tcp://localhost:5560").unwrap();
-        let mut core = Core::new().unwrap();
-
-        for req in 0..5 {
-            let receive = zmq_async
-                .sink()
-                .send(Message::from_slice("hello".as_bytes()).unwrap())
-                .and_then(|_| zmq_async.stream().into_future().map_err(|_| ()))
-                .and_then(|(msg, _)| match msg {
-                    Some(msg) => {
-                        String::from_utf8(msg.to_vec())
-                            .map_err(|_| println!("Failed to parse string from Message"))
-                            .map(|msg| println!("Received reply {} {}", req, msg))
-                    }
-                    None => Err(()),
-                });
-
-            core.run(receive).unwrap();
         }
     }
 }

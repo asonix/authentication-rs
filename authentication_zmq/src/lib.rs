@@ -21,20 +21,37 @@ extern crate zmq;
 extern crate futures;
 extern crate tokio_core;
 
-mod zmq_async;
+mod async;
 mod zmq_sync;
 
 use futures::{Future, Stream};
 use tokio_core::reactor::Core;
 
 pub use self::zmq_sync::{ZmqReceiver, ZmqReceiverBuilder, ZmqResponder, ZmqREP};
-pub use self::zmq_async::{ZmqAsyncREP, ZmqSink, ZmqStream, ZmqStreamBuilder};
+pub use self::async::{RepHandler, RepBuilder, RepServer, ZmqSink, ZmqStream};
+
+pub struct Echo;
+
+impl RepHandler for Echo {
+    type Request = zmq::Message;
+    type Response = zmq::Message;
+    type Error = ();
+
+    type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
+
+    fn call(&self, req: Self::Request) -> Self::Future {
+        Box::new(futures::future::ok(req))
+    }
+}
 
 pub fn run_stream() {
     let mut core = Core::new().unwrap();
     let context = zmq::Context::new();
     let sock = context.socket(zmq::REP).unwrap();
-    let zmq = ZmqAsyncREP::bind(&sock, "tcp://*:5560").unwrap();
+    let zmq = RepBuilder::new(sock)
+        .handler(Echo {})
+        .bind("tcp://*:5560")
+        .unwrap();
 
     println!("Got zmq");
 
