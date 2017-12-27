@@ -17,17 +17,31 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use std::rc::Rc;
+use std::fmt;
+use std::marker::PhantomData;
+
 use zmq;
 use futures::{Async, AsyncSink, Poll, Sink, StartSend};
 
 #[derive(Clone)]
-pub struct ZmqSink<'a> {
-    socket: &'a zmq::Socket,
+pub struct ZmqSink<H>
+where
+    H: super::RepHandler,
+{
+    socket: Rc<zmq::Socket>,
+    phantom: PhantomData<H>,
 }
 
-impl<'a> ZmqSink<'a> {
-    pub fn new(sock: &'a zmq::Socket) -> Self {
-        ZmqSink { socket: sock }
+impl<H> ZmqSink<H>
+where
+    H: super::RepHandler,
+{
+    pub fn new(sock: Rc<zmq::Socket>) -> Self {
+        ZmqSink {
+            socket: sock,
+            phantom: PhantomData,
+        }
     }
 
     fn send_message(&mut self, msg: zmq::Message) -> AsyncSink<zmq::Message> {
@@ -75,9 +89,12 @@ impl<'a> ZmqSink<'a> {
     }
 }
 
-impl<'a> Sink for ZmqSink<'a> {
+impl<H> Sink for ZmqSink<H>
+where
+    H: super::RepHandler,
+{
     type SinkItem = zmq::Message;
-    type SinkError = ();
+    type SinkError = H::Error;
 
     fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
         Ok(self.send_message(item))
@@ -85,5 +102,14 @@ impl<'a> Sink for ZmqSink<'a> {
 
     fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
         Ok(self.flush())
+    }
+}
+
+impl<H> fmt::Debug for ZmqSink<H>
+where
+    H: super::RepHandler,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "ZmqSink")
     }
 }

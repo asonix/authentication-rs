@@ -17,8 +17,10 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use zmq;
+use std::rc::Rc;
+use std::fmt::Debug;
 
+use zmq;
 use futures::{Future, Stream};
 
 mod stream;
@@ -29,10 +31,10 @@ pub use self::stream::ZmqStream;
 pub use self::sink::ZmqSink;
 pub use self::future::ZmqResponse;
 
-pub trait RepHandler {
+pub trait RepHandler: Clone {
     type Request: From<zmq::Message>;
     type Response: Into<zmq::Message>;
-    type Error: From<()>;
+    type Error: From<()> + Sized + Debug;
 
     type Future: Future<Item = Self::Response, Error = Self::Error>;
 
@@ -40,11 +42,11 @@ pub trait RepHandler {
 }
 
 pub struct RepBuilder {
-    sock: zmq::Socket,
+    sock: Rc<zmq::Socket>,
 }
 
 impl RepBuilder {
-    pub fn new(sock: zmq::Socket) -> Self {
+    pub fn new(sock: Rc<zmq::Socket>) -> Self {
         RepBuilder { sock }
     }
 
@@ -69,7 +71,7 @@ pub struct RepServerBuilder<H>
 where
     H: RepHandler,
 {
-    sock: zmq::Socket,
+    sock: Rc<zmq::Socket>,
     handler: H,
 }
 
@@ -91,7 +93,7 @@ pub struct RepServer<H>
 where
     H: RepHandler,
 {
-    sock: zmq::Socket,
+    sock: Rc<zmq::Socket>,
     handler: H,
 }
 
@@ -99,40 +101,45 @@ impl<H> RepServer<H>
 where
     H: RepHandler,
 {
-    pub fn new(sock: zmq::Socket) -> RepBuilder {
+    pub fn new(sock: Rc<zmq::Socket>) -> RepBuilder {
         RepBuilder::new(sock)
     }
 
-    pub fn runner<'a, T>(&'a self) -> impl Future<Item = (T, ZmqSink<'a>), Error = <H as RepHandler>::Error
-    where
-        T: Stream,
-    {
+    pub fn runner(
+        &self,
+    ) -> impl Future<
+        Item = (impl Stream<Item = zmq::Message, Error = H::Error>, ZmqSink<H>),
+        Error = H::Error,
+    > {
+        let handler = self.handler.clone();
+
         self.stream()
-            .map_err(<H as RepHandler>::Error::from)
-            .and_then(|msg| self.handler.call(msg.into()).into())
-            .map_err(|_| ())
+            .map_err(H::Error::from)
+            .and_then(move |msg| handler.call(msg.into()))
+            .map(|msg| msg.into())
+            .map_err(|e| e.into())
             .forward(self.sink())
     }
 
     pub fn stream(&self) -> ZmqStream {
-        ZmqStream::new(&self.sock)
+        ZmqStream::new(Rc::clone(&self.sock))
     }
 
-    pub fn sink(&self) -> ZmqSink {
-        ZmqSink::new(&self.sock)
+    pub fn sink(&self) -> ZmqSink<H> {
+        ZmqSink::new(Rc::clone(&self.sock))
     }
 }
 
 pub struct RepClient {
-    sock: zmq::Socket,
+    sock: Rc<zmq::Socket>,
 }
 
 impl RepClient {
-    pub fn new(sock: zmq::Socket) -> RepBuilder {
+    pub fn new(sock: Rc<zmq::Socket>) -> RepBuilder {
         RepBuilder::new(sock)
     }
 
     pub fn send(&self, msg: zmq::Message) -> ZmqResponse {
-        ZmqResponse::new(&self.sock, msg)
+        ZmqResponse::new(Rc::clone(&self.sock), msg)
     }
 }

@@ -17,18 +17,20 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use std::rc::Rc;
+
 use zmq;
 
 use futures::{Async, Future, Poll};
 use futures::task;
 
-pub struct ZmqResponse<'a> {
-    socket: &'a zmq::Socket,
+pub struct ZmqResponse {
+    socket: Rc<zmq::Socket>,
     msg: Option<zmq::Message>,
 }
 
-impl<'a> ZmqResponse<'a> {
-    pub fn new(socket: &'a zmq::Socket, msg: zmq::Message) -> Self {
+impl ZmqResponse {
+    pub fn new(socket: Rc<zmq::Socket>, msg: zmq::Message) -> Self {
         ZmqResponse {
             socket: socket,
             msg: Some(msg),
@@ -107,7 +109,7 @@ impl<'a> ZmqResponse<'a> {
     }
 }
 
-impl<'a> Future for ZmqResponse<'a> {
+impl Future for ZmqResponse {
     type Item = zmq::Message;
     type Error = ();
 

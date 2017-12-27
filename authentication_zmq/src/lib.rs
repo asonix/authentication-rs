@@ -17,6 +17,8 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#![feature(conservative_impl_trait)]
+
 extern crate zmq;
 extern crate futures;
 extern crate tokio_core;
@@ -24,18 +26,33 @@ extern crate tokio_core;
 mod async;
 mod zmq_sync;
 
-use futures::{Future, Stream};
+use std::rc::Rc;
+
+use futures::Future;
 use tokio_core::reactor::Core;
 
 pub use self::zmq_sync::{ZmqReceiver, ZmqReceiverBuilder, ZmqResponder, ZmqREP};
-pub use self::async::{RepHandler, RepBuilder, RepServer, ZmqSink, ZmqStream};
+pub use self::async::{RepHandler, RepBuilder, RepServer, RepClient, ZmqSink, ZmqStream,
+                      ZmqResponse};
 
+#[derive(Clone)]
 pub struct Echo;
+
+#[derive(Debug)]
+pub enum Error {
+    One,
+}
+
+impl From<()> for Error {
+    fn from(_: ()) -> Self {
+        Error::One
+    }
+}
 
 impl RepHandler for Echo {
     type Request = zmq::Message;
     type Response = zmq::Message;
-    type Error = ();
+    type Error = Error;
 
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
 
@@ -48,26 +65,14 @@ pub fn run_stream() {
     let mut core = Core::new().unwrap();
     let context = zmq::Context::new();
     let sock = context.socket(zmq::REP).unwrap();
-    let zmq = RepBuilder::new(sock)
+    let zmq = RepBuilder::new(Rc::new(sock))
         .handler(Echo {})
         .bind("tcp://*:5560")
         .unwrap();
 
     println!("Got zmq");
 
-    let stream = zmq.stream()
-        .map(|msg| msg.to_vec())
-        .map_err(|_| ())
-        .and_then(|msg| String::from_utf8(msg).map_err(|_| ()))
-        .map_err(|_| println!("Failed to parse string from Message"))
-        .and_then(|msg| {
-            println!("msg: '{}'", msg);
-
-            zmq::Message::from_slice("hey".as_bytes()).map_err(|_| ())
-        })
-        .forward(zmq.sink());
-
-    core.run(stream).unwrap();
+    core.run(zmq.runner()).unwrap();
 }
 
 pub fn run() {

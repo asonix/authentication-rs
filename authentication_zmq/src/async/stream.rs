@@ -17,17 +17,20 @@
  * along with Authentication.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use std::rc::Rc;
+use std::fmt;
+
 use zmq;
 use futures::{Async, Poll, Stream};
 use futures::task;
 
 #[derive(Clone)]
-pub struct ZmqStream<'a> {
-    socket: &'a zmq::Socket,
+pub struct ZmqStream {
+    socket: Rc<zmq::Socket>,
 }
 
-impl<'a> ZmqStream<'a> {
-    pub fn new(sock: &'a zmq::Socket) -> Self {
+impl ZmqStream {
+    pub fn new(sock: Rc<zmq::Socket>) -> Self {
         ZmqStream { socket: sock }
     }
 
@@ -66,11 +69,17 @@ impl<'a> ZmqStream<'a> {
     }
 }
 
-impl<'a> Stream for ZmqStream<'a> {
+impl Stream for ZmqStream {
     type Item = zmq::Message;
     type Error = ();
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         Ok(self.next_message())
+    }
+}
+
+impl fmt::Debug for ZmqStream {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "ZmqStream")
     }
 }
